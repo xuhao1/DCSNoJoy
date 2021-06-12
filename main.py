@@ -105,7 +105,9 @@ class MainWindow(QtWidgets.QMainWindow):
         self.count = 0
     
     def move_aim_tgt(self, x, y):
-        self.aim_tgt.move(int(x - 50 + DCS_W/2),int(y-50+ DCS_H/2))
+        #For window mode
+        self.aim_tgt.move(int(x - 50 + DCS_W/2),int(y + DCS_H/2 - 125))
+        # self.aim_tgt.move(-50, 0)
 
     def load_image_label(self):
         # input_image = cv2.imread("./assets/circle_small.png", cv2.IMREAD_UNCHANGED)
@@ -160,7 +162,12 @@ class MainWindow(QtWidgets.QMainWindow):
 
 
     def timerEvent(self, e):
-        self.aircraft_con.pre_update()
+        _m = mouse.get_position()
+        self.mouse = _m
+        _x, _y = self.aircraft_con.pre_update()
+        self.vmouse_y = self.vmouse_y*0.999 + _y*0.001
+        self.vmouse_x = self.vmouse_x*0.999 + _x*0.001
+
         top_win = win32gui.GetWindowText(win32gui.GetForegroundWindow())
         if top_win != DCS_WIN_NAME and top_win != WIN_NAME or not self.aircraft_con.OK or not self.aircraft_con.updated:
             return
@@ -171,8 +178,7 @@ class MainWindow(QtWidgets.QMainWindow):
             self.rud.setText("RUD: {:.1f}%".format(self.aircraft_con.get_rud()*100))
             self.thr.setText("THR: {:.1f}%".format(self.aircraft_con.get_thr()*100))
             
-        _m = mouse.get_position()
-        self.mouse = _m
+
         self.set_mouse_cur_pos_new(_m, 0.01)
 
         self.keyboard_watcher()

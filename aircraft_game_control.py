@@ -19,6 +19,7 @@ DCS_UDP_IP = "127.0.0.1"
 DCS_UDP_PORT = 27015
 DEFAULT_FOV = 67.4/57.3
 VIEW_OFFSET = 0
+MAX_BANK = 80/57.3
 
 def float_constrain(v, min, max):
     if v < min:
@@ -137,16 +138,18 @@ class game_aircraft_control():
         #Param for F18
         self.p_roll = 3.0
         self.p_pitch = 3.0
-        self.p_rollrate = 0.4
+        self.p_rollrate = 1.0
         self.p_pitchrate = 1.0
-        self.p_yawrate_to_roll = 2.0
+        self.p_yawrate = 0.4
+
+        self.p_yawrate_w_to_roll = 3.0
 
         self.yaw_sp = 0
         self.pitch_sp = 0
         self.roll_sp = 0
 
         #p yaw to roll
-        self.p_yaw = 1.0
+        self.p_yaw = 3.0
         #Note w means world frame
         self.yawrate_w_sp = 0
         
@@ -182,9 +185,14 @@ class game_aircraft_control():
             self.ail = x_sp*self.ailrate
             self.ele = -y_sp*self.elerate
         elif self.control_style == "warthunder":
-            self.yaw_sp = math.atan(_x/self.fx) - self.telem.data['yaw']
-            self.pitch_sp = -math.atan(_y/self.fy) - self.telem.data['pitch']
+            self.yaw_sp = math.atan(_x/self.fx) + self.telem.data['yaw']
+            self.pitch_sp = -math.atan(_y/self.fy) + self.telem.data['pitch']
     
+    def move_back_aim_mouse(self):
+        _y = math.tan((self.pitch_sp - self.telem.data['pitch']))*self.fy
+        _x = -math.tan((self.yaw_sp - self.telem.data['yaw']))*self.fy
+        return _x, _y
+
     def control_body_aim(self, yaw_sp, pitch_sp):
         #need to update to quaternion
         new_view_rel_yaw = wrap_pi(self.yaw_sp - self.telem.data['yaw'])*57.3
@@ -197,8 +205,9 @@ class game_aircraft_control():
 
         #We may also consider use g instead
         self.yawrate_w_sp = dyaw * self.p_yaw
+        self.yawrate_b_sp = self.yawrate_w_sp*math.cos(self.telem.data['pitch'])*math.cos(self.telem.data['roll'])
         self.pitchrate_b_sp = self.yawrate_w_sp*math.cos(self.telem.data['pitch'])*math.sin(self.telem.data['roll'])
-        self.roll_sp = float_constrain(self.yawrate_w_sp*self.p_yawrate_to_roll, -np.pi, np.pi)
+        self.roll_sp = float_constrain(self.yawrate_w_sp*self.p_yawrate_w_to_roll, -MAX_BANK, MAX_BANK)
 
     def status(self):
         if self.telem.OK:
@@ -214,6 +223,7 @@ class game_aircraft_control():
                 self.control_body_aim(self.yaw_sp, self.pitch_sp)
                 self.ail = (self.roll_sp - self.telem.data["roll"])*self.p_roll + self.p_rollrate*(self.rollrate_b_sp-self.telem.data["rollrate"])
                 self.ele = (self.pitch_sp - self.telem.data["pitch"])*self.p_pitch + self.p_pitchrate*(self.pitchrate_b_sp-self.telem.data["pitchrate"])
+                self.rud = self.p_yawrate*(self.yawrate_b_sp-self.telem.data["pitchrate"])
                 # self.ele = self.p_pitchrate*(self.pitchrate_b_sp-self.telem.data["pitchrate"])
 
                 # self.ail = self.roll_sp - self.p_rollrate*self.telem.data["rollrate"]
@@ -221,7 +231,6 @@ class game_aircraft_control():
                 # print(f"rollsp {self.roll_sp*57.3:3.1f} roll {self.telem.data['roll']*57.3:3.1f} rollrate {self.telem.data['rollrate']*57.3:3.1f}  ail {self.ail}")
                 # print(f"pitch_sp {self.pitch_sp} pitch {self.telem.data['pitch']} ele {self.ele}")
         self.telem.updated = False
-        return 0, 0
 
     def set_mouse_free_look(self, _x, _y):
         self.view_rel_yaw = _x/ self.screen_scale*57.3*self.view_rate
@@ -241,12 +250,15 @@ class game_aircraft_control():
         self.telem.update()
         self.OK = self.telem.OK
         self.updated = self.telem.updated
+        if self.OK and self.updated:
+            return self.move_back_aim_mouse()
+        return 0, 0
 
     def update(self):
         self.controller_update()
         self.vjoyman.set_joystick_x(self.ail)
         self.vjoyman.set_joystick_y(self.ele)
-        # self.vjoyman.set_joystick_rz(self.rud)
+        self.vjoyman.set_joystick_rz(self.rud)
         self.vjoyman.set_joystick_z(-self.thr)
         self.tracker.send_pose([self.view_rel_yaw, self.view_rel_pitch+VIEW_OFFSET, 0], [0, 0, 0])
 
