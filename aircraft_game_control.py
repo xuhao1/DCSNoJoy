@@ -17,6 +17,8 @@ import numpy as np
 
 DCS_UDP_IP = "127.0.0.1"
 DCS_UDP_PORT = 27015
+DEFAULT_FOV = 67.4/57.3
+VIEW_OFFSET = 0
 
 def float_constrain(v, min, max):
     if v < min:
@@ -33,6 +35,9 @@ def toHexCmd(cmd):
     if cmd > 32768:
         return 32768
     return cmd
+
+def wrap_pi(v):
+    return (v + np.pi) % (2 * np.pi) - np.pi
 
 def pose_to_udp_msg(eul, T):
     return struct.pack("<dddddd", T[0], T[1], T[2], eul[0], eul[1], eul[2])
@@ -107,7 +112,7 @@ class DCSTelem():
         return values
 
 class game_aircraft_control():
-    def __init__(self):
+    def __init__(self, win_w, win_h):
         self.vjoyman = VJoyManager()
         self.tracker = GameTracker()
         self.telem = DCSTelem()
@@ -122,7 +127,7 @@ class game_aircraft_control():
         self.ailrate = 1.5
         self.elerate = 2.0
         
-        self.view_rate = 10.0
+        self.view_rate = 4.0
         self.att_sp_rate = 1.0
         # self.control_style = "battlefield" 
         self.control_style = "warthunder" 
@@ -147,6 +152,15 @@ class game_aircraft_control():
         self.pitchrate_b_sp = 0
         self.rollrate_b_sp = 0
 
+        self.view_filter_rate = 0.9
+
+        #View camera parameter
+        self.cx = win_w /2
+        self.cy = win_h /2
+        self.fx = self.fy = win_w/2/math.tan(DEFAULT_FOV/2)
+
+        print(f"Camera cx {self.cx} cy{self.cy} fx {self.fx} fy {self.fy}")
+
     def get_ail(self):
         return self.ail
 
@@ -166,12 +180,14 @@ class game_aircraft_control():
             self.ail = x_sp*self.ailrate
             self.ele = -y_sp*self.elerate
         elif self.control_style == "warthunder":
-            # self.roll_sp = x_sp*self.att_sp_rate
-            self.yaw_sp = x_sp*self.att_sp_rate
-            self.pitch_sp = -y_sp*self.att_sp_rate
+            self.yaw_sp = math.atan(_x/self.fx)
+            self.pitch_sp = -math.atan(_y/self.fy)
     
     def control_body_aim(self, yaw_sp, pitch_sp):
         #need to update to quaternion
+        self.view_rel_yaw = wrap_pi(self.yaw_sp - self.telem.data['yaw'])*57.3*(1-self.view_filter_rate)+self.view_rel_yaw*self.view_filter_rate
+        self.view_rel_pitch = (self.pitch_sp - self.telem.data['pitch'])*57.3*(1-self.view_filter_rate)+self.view_rel_pitch*self.view_filter_rate
+
         dyaw = self.yaw_sp - self.telem.data["yaw"]
         dyaw = (dyaw + np.pi) % (2 * np.pi) - np.pi
 
@@ -202,8 +218,8 @@ class game_aircraft_control():
                 # print(f"pitch_sp {self.pitch_sp} pitch {self.telem.data['pitch']} ele {self.ele}")
 
     def set_mouse_free_look(self, _x, _y):
-        self.view_yaw = _x/ self.screen_scale*57.3*self.view_rate
-        self.view_pitch = -_y/ self.screen_scale*57.3*self.view_rate
+        self.view_rel_yaw = _x/ self.screen_scale*57.3*self.view_rate
+        self.view_rel_pitch = -_y/ self.screen_scale*57.3*self.view_rate
 
     def inc_thr(self, dt):
         self.thr += dt*THR_RATE
@@ -225,7 +241,7 @@ class game_aircraft_control():
         self.vjoyman.set_joystick_y(self.ele)
         # self.vjoyman.set_joystick_rz(self.rud)
         self.vjoyman.set_joystick_z(-self.thr)
-        self.tracker.send_pose([self.view_yaw, self.view_pitch, 0], [0, 0, 0])
+        self.tracker.send_pose([self.view_rel_yaw, self.view_rel_pitch+VIEW_OFFSET, 0], [0, 0, 0])
 
 if __name__ == '__main__':
     aircraft_con = game_aircraft_control()

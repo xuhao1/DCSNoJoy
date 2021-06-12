@@ -42,7 +42,7 @@ def callback(hwnd, extra):
 
 class MainWindow(QtWidgets.QMainWindow):
     def __init__(self, parent=None):
-        self.aircraft_con = game_aircraft_control()
+        self.aircraft_con = game_aircraft_control(DCS_W, DCS_H)
         super(MainWindow, self).__init__(parent)
         self.setWindowFlags(
             QtCore.Qt.WindowStaysOnTopHint |
@@ -137,8 +137,8 @@ class MainWindow(QtWidgets.QMainWindow):
 
         self.vmouse_x += (x - self.windows_center_x0)*self.vmouse_rate
         self.vmouse_y += (y - self.windows_center_y0)*self.vmouse_rate
-        self.vmouse_x = float_constrain(self.vmouse_x, -DCS_W/2, DCS_W/2)
-        self.vmouse_y = float_constrain(self.vmouse_y, -DCS_H/2, DCS_H/2)
+        # self.vmouse_x = float_constrain(self.vmouse_x, -DCS_W/2, DCS_W/2)
+        # self.vmouse_y = float_constrain(self.vmouse_y, -DCS_H/2, DCS_H/2)
 
         
         if self.is_free_look:
@@ -146,10 +146,9 @@ class MainWindow(QtWidgets.QMainWindow):
                 self.free_look_x0 = self.vmouse_x
                 self.free_look_y0 = self.vmouse_y
             self.aircraft_con.set_mouse_free_look(self.vmouse_x-self.free_look_x0, self.vmouse_y-self.free_look_y0)
-            self.status.setText(f"FreeLook")
+            self.status.setText(f"FreeLook {self.aircraft_con.view_rel_yaw:3.1f}")
         else:
             self.aircraft_con.set_mouse_aircraft_control(self.vmouse_x, self.vmouse_y)
-            self.status.setText(f"MouseAim {self.vmouse_x:3.1f} {self.vmouse_y:3.1f}")
             self.status.setText(f"MouseAim {self.aircraft_con.status()}")
             self.free_look_x0 = None
             self.free_look_y0 = None
