@@ -92,6 +92,7 @@ class DCSTelem():
         self.dcs_sock.setblocking(0)
 
         self.OK = False
+        self.updated = False
 
     def update(self):
         ready = select.select([self.dcs_sock], [], [], 0.002)
@@ -101,6 +102,7 @@ class DCSTelem():
             if not self.OK:
                 self.OK = True
                 print("DCS Ready")
+            self.updated = True
 
     def parse_data(self, data):
         data = data.decode("utf-8") 
@@ -180,13 +182,15 @@ class game_aircraft_control():
             self.ail = x_sp*self.ailrate
             self.ele = -y_sp*self.elerate
         elif self.control_style == "warthunder":
-            self.yaw_sp = math.atan(_x/self.fx)
-            self.pitch_sp = -math.atan(_y/self.fy)
+            self.yaw_sp = math.atan(_x/self.fx) - self.telem.data['yaw']
+            self.pitch_sp = -math.atan(_y/self.fy) - self.telem.data['pitch']
     
     def control_body_aim(self, yaw_sp, pitch_sp):
         #need to update to quaternion
-        self.view_rel_yaw = wrap_pi(self.yaw_sp - self.telem.data['yaw'])*57.3*(1-self.view_filter_rate)+self.view_rel_yaw*self.view_filter_rate
-        self.view_rel_pitch = (self.pitch_sp - self.telem.data['pitch'])*57.3*(1-self.view_filter_rate)+self.view_rel_pitch*self.view_filter_rate
+        new_view_rel_yaw = wrap_pi(self.yaw_sp - self.telem.data['yaw'])*57.3
+        self.view_rel_yaw = new_view_rel_yaw*(1-self.view_filter_rate)+self.view_rel_yaw*self.view_filter_rate
+        new_view_pitch = wrap_pi(self.yaw_sp - self.telem.data['yaw'])*57.3
+        self.view_rel_pitch = new_view_pitch*(1-self.view_filter_rate)+self.view_rel_pitch*self.view_filter_rate
 
         dyaw = self.yaw_sp - self.telem.data["yaw"]
         dyaw = (dyaw + np.pi) % (2 * np.pi) - np.pi
@@ -216,6 +220,8 @@ class game_aircraft_control():
                 # print()
                 # print(f"rollsp {self.roll_sp*57.3:3.1f} roll {self.telem.data['roll']*57.3:3.1f} rollrate {self.telem.data['rollrate']*57.3:3.1f}  ail {self.ail}")
                 # print(f"pitch_sp {self.pitch_sp} pitch {self.telem.data['pitch']} ele {self.ele}")
+        self.telem.updated = False
+        return 0, 0
 
     def set_mouse_free_look(self, _x, _y):
         self.view_rel_yaw = _x/ self.screen_scale*57.3*self.view_rate
@@ -234,6 +240,7 @@ class game_aircraft_control():
     def pre_update(self):
         self.telem.update()
         self.OK = self.telem.OK
+        self.updated = self.telem.updated
 
     def update(self):
         self.controller_update()

@@ -137,8 +137,8 @@ class MainWindow(QtWidgets.QMainWindow):
 
         self.vmouse_x += (x - self.windows_center_x0)*self.vmouse_rate
         self.vmouse_y += (y - self.windows_center_y0)*self.vmouse_rate
-        # self.vmouse_x = float_constrain(self.vmouse_x, -DCS_W/2, DCS_W/2)
-        # self.vmouse_y = float_constrain(self.vmouse_y, -DCS_H/2, DCS_H/2)
+        self.vmouse_x = float_constrain(self.vmouse_x, -DCS_W/2, DCS_W/2)
+        self.vmouse_y = float_constrain(self.vmouse_y, -DCS_H/2, DCS_H/2)
 
         
         if self.is_free_look:
@@ -162,7 +162,7 @@ class MainWindow(QtWidgets.QMainWindow):
     def timerEvent(self, e):
         self.aircraft_con.pre_update()
         top_win = win32gui.GetWindowText(win32gui.GetForegroundWindow())
-        if top_win != DCS_WIN_NAME and top_win != WIN_NAME or not self.aircraft_con.OK:
+        if top_win != DCS_WIN_NAME and top_win != WIN_NAME or not self.aircraft_con.OK or not self.aircraft_con.updated:
             return
 
         if self.count % 10 == 0:
