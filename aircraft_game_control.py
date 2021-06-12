@@ -18,6 +18,12 @@ import numpy as np
 DCS_UDP_IP = "127.0.0.1"
 DCS_UDP_PORT = 27015
 
+def float_constrain(v, min, max):
+    if v < min:
+        v = min
+    if v > max:
+        v = max
+    return v
 
 def toHexCmd(cmd):
     #convert -1 to 1 to 0 to 32768
@@ -83,7 +89,7 @@ class DCSTelem():
         self.OK = False
 
     def update(self):
-        ready = select.select([self.dcs_sock], [], [], 0.001)
+        ready = select.select([self.dcs_sock], [], [], 0.002)
         if ready[0]:
             msg, addr = self.dcs_sock.recvfrom(1024) # buffer size is 1024 bytes
             self.data = self.parse_data(msg)
@@ -116,17 +122,17 @@ class game_aircraft_control():
         self.ailrate = 1.5
         self.elerate = 2.0
         
-        self.view_rate = 70.0
+        self.view_rate = 10.0
         self.att_sp_rate = 2.0
         # self.control_style = "battlefield" 
         self.control_style = "warthunder" 
 
         #Param for F18
         self.p_roll = 3.0
-        self.p_pitch = 5.0
+        self.p_pitch = 3.0
         self.p_rollrate = 0.4
         self.p_pitchrate = 0.4
-
+        self.p_yawrate_to_roll = 2.0
 
         self.yaw_sp = 0
         self.pitch_sp = 0
@@ -172,14 +178,25 @@ class game_aircraft_control():
 
         #We may also consider use g instead
         self.yawrate_w_sp = dyaw * self.p_yaw
+        self.pitchrate_b_sp = self.yawrate_w_sp*math.cos(self.telem.data['roll'])
+        self.roll_sp = float_constrain(self.yawrate_w_sp*self.p_yawrate_to_roll, -np.pi, np.pi)
+
+    def status(self):
+        if self.telem.OK:
+            _s =  f"yawsp {self.yaw_sp*57.3:3.1f} yaw {self.telem.data['yaw']*57.3:3.1f} yawrate_w_sp {self.yawrate_w_sp*57.3:3.1f} yaw rate {self.telem.data['yawrate']*57.3:3.1f}"
+            _s += f"rollsp {self.roll_sp*57.3:3.1f} roll {self.telem.data['roll']*57.3:3.1f}"
+            _s += f"pitch_sp {self.pitch_sp*57.3:3.1f} pitch {self.telem.data['pitch']*57.3:3.1f}"
+            return _s
+        return "Wait for connection"
 
     def controller_update(self):
         if self.telem.OK:
-            # self.roll_sp = dyaw*self.p_yaw
-            self.ail = (self.roll_sp - self.telem.data["roll"])*self.p_roll - self.p_rollrate*self.telem.data["rollrate"]
+            self.control_body_aim(self.yaw_sp, self.pitch_sp)
+            self.ail = (self.roll_sp - self.telem.data["roll"])*self.p_roll - self.p_rollrate*(self.rollrate_b_sp-self.telem.data["rollrate"])
+            self.ele = (self.pitch_sp - self.telem.data["pitch"])*self.p_pitch - self.p_pitchrate*(self.pitchrate_b_sp-self.telem.data["pitchrate"])
+
             # self.ail = self.roll_sp - self.p_rollrate*self.telem.data["rollrate"]
-            self.ele = (self.pitch_sp - self.telem.data["pitch"])*self.p_pitch - self.p_pitchrate*self.telem.data["pitchrate"]
-            # print(f"yawsp {self.yaw_sp*57.3:3.1f} rollsp {self.roll_sp*57.3:3.1f} roll {self.telem.data['roll']*57.3:3.1f} rollrate {self.telem.data['rollrate']*57.3:3.1f}  ail {self.ail}")
+            # print()
             # print(f"rollsp {self.roll_sp*57.3:3.1f} roll {self.telem.data['roll']*57.3:3.1f} rollrate {self.telem.data['rollrate']*57.3:3.1f}  ail {self.ail}")
             # print(f"pitch_sp {self.pitch_sp} pitch {self.telem.data['pitch']} ele {self.ele}")
 
