@@ -5,6 +5,8 @@ import socket
 import struct
 import math
 import select
+from transformations import *
+from configs import *
 
 THR_RATE = 0.7
 UDP_IP = "127.0.0.1"
@@ -124,42 +126,24 @@ class game_aircraft_control():
         self.ele = 0
         self.rud = 0
         self.thr = 0.7
-        
+
         self.view_yaw = 0
         self.view_pitch = 0
 
-        self.screen_scale = 2000
-        self.ailrate = 1.5
-        self.elerate = 2.0
-        
-        self.view_rate = 4.0
-        self.att_sp_rate = 1.0
-        # self.control_style = "battlefield" 
-        self.control_style = "warthunder" 
-
-        #Param for F18
-        self.p_roll = 3.0
-        self.p_pitch = 3.0
-        self.p_rollrate = 1.0
-        self.p_pitchrate = 1.0
-        self.p_yawrate = 0.4
-
-        self.p_yawrate_w_to_roll = 3.0
+        self.q_view_abs = [1, 0, 0, 0]
+        self.q_att_sp = [1, 0, 0, 0]
+        self.q_att = [1, 0, 0, 0]
 
         self.yaw_sp = None
         self.pitch_sp = None
         self.roll_sp = None
 
-        #p yaw to roll
-        self.p_yaw = 3.0
         #Note w means world frame
         self.yawrate_w_sp = 0
-        
+
         self.yawrate_b_sp = 0
         self.pitchrate_b_sp = 0
         self.rollrate_b_sp = 0
-
-        self.view_filter_rate = 0.9
 
         #View camera parameter
         self.cx = win_w /2
@@ -183,12 +167,13 @@ class game_aircraft_control():
         return self.thr
 
     def set_mouse_aircraft_control(self, _x, _y):
-        x_sp =  _x / self.screen_scale 
-        y_sp =  _y / self.screen_scale 
-        if self.control_style == "battlefield":
-            self.ail = x_sp*self.ailrate
-            self.ele = -y_sp*self.elerate
-        elif self.control_style == "warthunder" and self.OK and self.updated:
+        x_sp =  _x / screen_scale 
+        y_sp =  _y / screen_scale 
+        
+        if control_style == "battlefield":
+            self.ail = x_sp*ailrate
+            self.ele = -y_sp*elerate
+        elif control_style == "warthunder" and self.OK and self.updated:
             if self.yaw_sp == None:
                 self.yaw_sp = self.telem.data['yaw']
                 self.pitch_sp = self.telem.data['pitch']
@@ -198,28 +183,36 @@ class game_aircraft_control():
     
     def move_aim_mouse(self):
         if self.pitch_sp is not None:
-            _y = math.tan(-(self.pitch_sp - self.view_pitch))*self.fy
-            _x = math.tan((self.yaw_sp - self.view_yaw))*self.fy
+            # _y = math.tan(-(self.pitch_sp - self.view_pitch))*self.fy
+            # _x = math.tan((self.yaw_sp - self.view_yaw))*self.fy
+            _y = 0
+            _x = 0
             return _x, _y
         else:
             return 0, 0
 
     def control_body_aim(self, yaw_sp, pitch_sp):
         #need to update to quaternion
-        if not self.is_free_look:
-            new_view_yaw = wrap_pi(self.yaw_sp)*57.3
-            self.view_yaw = new_view_yaw*(1-self.view_filter_rate)+self.view_yaw*self.view_filter_rate
-            new_view_pitch = wrap_pi(self.pitch_sp)*57.3
-            self.view_pitch = new_view_pitch*(1-self.view_filter_rate)+self.view_pitch*self.view_filter_rate
+        # if not self.is_free_look:
+        #     new_view_yaw = wrap_pi(self.yaw_sp)*57.3
+        #     self.view_yaw = new_view_yaw*(1-self.view_filter_rate)+self.view_yaw*self.view_filter_rate
+        #     new_view_pitch = wrap_pi(self.pitch_sp)*57.3
+        #     self.view_pitch = new_view_pitch*(1-self.view_filter_rate)+self.view_pitch*self.view_filter_rate
+
+        # oy = 0
+        # oy = -_y/ screen_scale*57.3*view_rate
+        # oz =  _x/ screen_scale*57.3*view_rate
+        # self.q_view_abs += 0.5*quaternion_multiply(self.q_view_abs, [0, 0, oy, oz])
+        # self.q_view_abs = unit_vector(self.q_view_abs)
 
         dyaw = self.yaw_sp - self.telem.data["yaw"]
         dyaw = (dyaw + np.pi) % (2 * np.pi) - np.pi
 
         #We may also consider use g instead
-        self.yawrate_w_sp = dyaw * self.p_yaw
+        self.yawrate_w_sp = dyaw * p_yaw
         self.yawrate_b_sp = self.yawrate_w_sp*math.cos(self.telem.data['pitch'])*math.cos(self.telem.data['roll'])
         self.pitchrate_b_sp = self.yawrate_w_sp*math.cos(self.telem.data['pitch'])*math.sin(self.telem.data['roll'])
-        self.roll_sp = float_constrain(self.yawrate_w_sp*self.p_yawrate_w_to_roll, -MAX_BANK, MAX_BANK)
+        self.roll_sp = float_constrain(self.yawrate_w_sp*p_yawrate_w_to_roll, -MAX_BANK, MAX_BANK)
 
     def status(self):
         if self.telem.OK:
@@ -231,11 +224,11 @@ class game_aircraft_control():
 
     def controller_update(self):
         if self.telem.OK:
-            if self.control_style == "warthunder":
+            if control_style == "warthunder":
                 self.control_body_aim(self.yaw_sp, self.pitch_sp)
-                self.ail = (self.roll_sp - self.telem.data["roll"])*self.p_roll + self.p_rollrate*(self.rollrate_b_sp-self.telem.data["rollrate"])
-                self.ele = (self.pitch_sp - self.telem.data["pitch"])*self.p_pitch + self.p_pitchrate*(self.pitchrate_b_sp-self.telem.data["pitchrate"])
-                self.rud = self.p_yawrate*(self.yawrate_b_sp-self.telem.data["pitchrate"])
+                self.ail = (self.roll_sp - self.telem.data["roll"])*p_roll + p_rollrate*(self.rollrate_b_sp-self.telem.data["rollrate"])
+                self.ele = (self.pitch_sp - self.telem.data["pitch"])*p_pitch + p_pitchrate*(self.pitchrate_b_sp-self.telem.data["pitchrate"])
+                self.rud = p_yawrate*(self.yawrate_b_sp-self.telem.data["pitchrate"])
                 # self.ele = self.p_pitchrate*(self.pitchrate_b_sp-self.telem.data["pitchrate"])
 
                 # self.ail = self.roll_sp - self.p_rollrate*self.telem.data["rollrate"]
@@ -246,13 +239,16 @@ class game_aircraft_control():
 
     def set_mouse_free_look(self, _x, _y):
         self.is_free_look = True
-        self.view_yaw += _x/ self.screen_scale*57.3*self.view_rate
-        self.view_pitch += -_y/ self.screen_scale*57.3*self.view_rate
+        self.view_yaw += _x/ screen_scale*57.3*view_rate
+        self.view_pitch += -_y/ screen_scale*57.3*view_rate
+        self.q_view_abs = quaternion_from_euler(0, self.view_pitch, self.view_yaw)
     
     def set_mouse_free_look_off(self):
         self.is_free_look = False
         self.view_yaw = self.telem.data["yaw"]
         self.view_pitch = self.telem.data["pitch"]
+        self.q_view_abs = quaternion_from_euler(0, self.view_pitch, self.view_yaw)
+        self.q_view_abs = [1, 0, 0, 0]
 
     def inc_thr(self, dt):
         self.thr += dt*THR_RATE
@@ -272,13 +268,19 @@ class game_aircraft_control():
             return self.move_aim_mouse()
         return 0, 0
 
+    def set_camera_view(self):
+        euler = euler_from_quaternion(self.q_view_abs)
+        # print(self.view_yaw, self.view_pitch, euler)
+        # self.tracker.send_pose([self.view_yaw-self.telem.data["yaw"], self.view_pitch - self.telem.data["pitch"]+VIEW_OFFSET, 0], [0, 0, 0])
+        self.tracker.send_pose([euler[2]*57.3, euler[1]*57.3, 0], [0, 0, 0])
+
     def update(self):
         self.controller_update()
-        self.vjoyman.set_joystick_x(self.ail)
-        self.vjoyman.set_joystick_y(self.ele)
-        self.vjoyman.set_joystick_rz(self.rud)
-        self.vjoyman.set_joystick_z(-self.thr)
-        self.tracker.send_pose([self.view_yaw-self.telem.data["yaw"], self.view_pitch - self.telem.data["pitch"]+VIEW_OFFSET, 0], [0, 0, 0])
+        # self.vjoyman.set_joystick_x(self.ail)
+        # self.vjoyman.set_joystick_y(self.ele)
+        # self.vjoyman.set_joystick_rz(self.rud)
+        # self.vjoyman.set_joystick_z(-self.thr)
+        self.set_camera_view()
 
 if __name__ == '__main__':
     aircraft_con = game_aircraft_control()

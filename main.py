@@ -142,7 +142,7 @@ class MainWindow(QtWidgets.QMainWindow):
 
         if self.is_free_look:
             self.aircraft_con.set_mouse_free_look(dmouse_x, dmouse_y)
-            self.status.setText(f"FreeLook {self.aircraft_con.view_yaw:3.1f}")
+            self.status.setText(f"FreeLook {self.aircraft_con.view_yaw*57.3:3.1f} {self.aircraft_con.view_pitch*57.3:3.1f}")
         else:
             self.aircraft_con.set_mouse_free_look_off()
             self.aircraft_con.set_mouse_aircraft_control(dmouse_x, dmouse_y)
@@ -169,8 +169,8 @@ class MainWindow(QtWidgets.QMainWindow):
             self.rud.setText("RUD: {:.1f}%".format(self.aircraft_con.get_rud()*100))
             self.thr.setText("THR: {:.1f}%".format(self.aircraft_con.get_thr()*100))
             
-
-        self.set_mouse_cur_pos_new(_m, 0.01)
+        if self.count % 2 == 0:
+            self.set_mouse_cur_pos_new(_m, 0.01)
 
         self.keyboard_watcher()
 
