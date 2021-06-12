@@ -136,24 +136,17 @@ class MainWindow(QtWidgets.QMainWindow):
 
         if self.mouse_y0 == None:
             self.mouse_y0 = y
-
-        self.vmouse_x += (x - self.windows_center_x0)*self.vmouse_rate
-        self.vmouse_y += (y - self.windows_center_y0)*self.vmouse_rate
-        self.vmouse_x = float_constrain(self.vmouse_x, -DCS_W/2, DCS_W/2)
-        self.vmouse_y = float_constrain(self.vmouse_y, -DCS_H/2, DCS_H/2)
-
         
+        dmouse_x = (x - self.windows_center_x0)*self.vmouse_rate
+        dmouse_y = (y - self.windows_center_y0)*self.vmouse_rate
+
         if self.is_free_look:
-            if self.free_look_x0 == None:
-                self.free_look_x0 = self.vmouse_x
-                self.free_look_y0 = self.vmouse_y
-            self.aircraft_con.set_mouse_free_look(self.vmouse_x-self.free_look_x0, self.vmouse_y-self.free_look_y0)
-            self.status.setText(f"FreeLook {self.aircraft_con.view_rel_yaw:3.1f}")
+            self.aircraft_con.set_mouse_free_look(dmouse_x, dmouse_y)
+            self.status.setText(f"FreeLook {self.aircraft_con.view_yaw:3.1f}")
         else:
-            self.aircraft_con.set_mouse_aircraft_control(self.vmouse_x, self.vmouse_y)
+            self.aircraft_con.set_mouse_free_look_off()
+            self.aircraft_con.set_mouse_aircraft_control(dmouse_x, dmouse_y)
             self.status.setText(f"MouseAim {self.aircraft_con.status()}")
-            self.free_look_x0 = None
-            self.free_look_y0 = None
 
 
         mouse.move(self.windows_center_x0, self.windows_center_y0)
@@ -164,9 +157,7 @@ class MainWindow(QtWidgets.QMainWindow):
     def timerEvent(self, e):
         _m = mouse.get_position()
         self.mouse = _m
-        _x, _y = self.aircraft_con.pre_update()
-        self.vmouse_y = self.vmouse_y*0.999 + _y*0.001
-        self.vmouse_x = self.vmouse_x*0.999 + _x*0.001
+        self.vmouse_x, self.vmouse_y = self.aircraft_con.pre_update()
 
         top_win = win32gui.GetWindowText(win32gui.GetForegroundWindow())
         if top_win != DCS_WIN_NAME and top_win != WIN_NAME or not self.aircraft_con.OK or not self.aircraft_con.updated:
