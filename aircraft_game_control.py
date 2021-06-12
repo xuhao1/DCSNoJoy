@@ -123,7 +123,7 @@ class game_aircraft_control():
         self.elerate = 2.0
         
         self.view_rate = 10.0
-        self.att_sp_rate = 2.0
+        self.att_sp_rate = 1.0
         # self.control_style = "battlefield" 
         self.control_style = "warthunder" 
 
@@ -131,7 +131,7 @@ class game_aircraft_control():
         self.p_roll = 3.0
         self.p_pitch = 3.0
         self.p_rollrate = 0.4
-        self.p_pitchrate = 0.4
+        self.p_pitchrate = 1.0
         self.p_yawrate_to_roll = 2.0
 
         self.yaw_sp = 0
@@ -139,7 +139,7 @@ class game_aircraft_control():
         self.roll_sp = 0
 
         #p yaw to roll
-        self.p_yaw = 0.5
+        self.p_yaw = 1.0
         #Note w means world frame
         self.yawrate_w_sp = 0
         
@@ -169,7 +169,6 @@ class game_aircraft_control():
             # self.roll_sp = x_sp*self.att_sp_rate
             self.yaw_sp = x_sp*self.att_sp_rate
             self.pitch_sp = -y_sp*self.att_sp_rate
-
     
     def control_body_aim(self, yaw_sp, pitch_sp):
         #need to update to quaternion
@@ -178,27 +177,29 @@ class game_aircraft_control():
 
         #We may also consider use g instead
         self.yawrate_w_sp = dyaw * self.p_yaw
-        self.pitchrate_b_sp = self.yawrate_w_sp*math.cos(self.telem.data['roll'])
+        self.pitchrate_b_sp = self.yawrate_w_sp*math.cos(self.telem.data['pitch'])*math.sin(self.telem.data['roll'])
         self.roll_sp = float_constrain(self.yawrate_w_sp*self.p_yawrate_to_roll, -np.pi, np.pi)
 
     def status(self):
         if self.telem.OK:
-            _s =  f"yawsp {self.yaw_sp*57.3:3.1f} yaw {self.telem.data['yaw']*57.3:3.1f} yawrate_w_sp {self.yawrate_w_sp*57.3:3.1f} yaw rate {self.telem.data['yawrate']*57.3:3.1f}"
-            _s += f"rollsp {self.roll_sp*57.3:3.1f} roll {self.telem.data['roll']*57.3:3.1f}"
-            _s += f"pitch_sp {self.pitch_sp*57.3:3.1f} pitch {self.telem.data['pitch']*57.3:3.1f}"
+            _s =  f"yaw: sp {self.yaw_sp*57.3:3.1f} raw {self.telem.data['yaw']*57.3:3.1f} rate_w_sp {self.yawrate_w_sp*57.3:3.1f} rate {self.telem.data['yawrate']*57.3:3.1f}\n"
+            _s += f"pitch sp: {self.pitch_sp*57.3:3.1f} pitch {self.telem.data['pitch']*57.3:3.1f} rate_b_sp {self.pitchrate_b_sp*57.3:3.1f} rate {self.telem.data['pitchrate']*57.3:3.1f}\n"
+            _s += f"roll: sp {self.roll_sp*57.3:3.1f} raw {self.telem.data['roll']*57.3:3.1f} rate {self.telem.data['rollrate']*57.3:3.1f}"
             return _s
         return "Wait for connection"
 
     def controller_update(self):
         if self.telem.OK:
-            self.control_body_aim(self.yaw_sp, self.pitch_sp)
-            self.ail = (self.roll_sp - self.telem.data["roll"])*self.p_roll - self.p_rollrate*(self.rollrate_b_sp-self.telem.data["rollrate"])
-            self.ele = (self.pitch_sp - self.telem.data["pitch"])*self.p_pitch - self.p_pitchrate*(self.pitchrate_b_sp-self.telem.data["pitchrate"])
+            if self.control_style == "warthunder":
+                self.control_body_aim(self.yaw_sp, self.pitch_sp)
+                self.ail = (self.roll_sp - self.telem.data["roll"])*self.p_roll + self.p_rollrate*(self.rollrate_b_sp-self.telem.data["rollrate"])
+                self.ele = (self.pitch_sp - self.telem.data["pitch"])*self.p_pitch + self.p_pitchrate*(self.pitchrate_b_sp-self.telem.data["pitchrate"])
+                # self.ele = self.p_pitchrate*(self.pitchrate_b_sp-self.telem.data["pitchrate"])
 
-            # self.ail = self.roll_sp - self.p_rollrate*self.telem.data["rollrate"]
-            # print()
-            # print(f"rollsp {self.roll_sp*57.3:3.1f} roll {self.telem.data['roll']*57.3:3.1f} rollrate {self.telem.data['rollrate']*57.3:3.1f}  ail {self.ail}")
-            # print(f"pitch_sp {self.pitch_sp} pitch {self.telem.data['pitch']} ele {self.ele}")
+                # self.ail = self.roll_sp - self.p_rollrate*self.telem.data["rollrate"]
+                # print()
+                # print(f"rollsp {self.roll_sp*57.3:3.1f} roll {self.telem.data['roll']*57.3:3.1f} rollrate {self.telem.data['rollrate']*57.3:3.1f}  ail {self.ail}")
+                # print(f"pitch_sp {self.pitch_sp} pitch {self.telem.data['pitch']} ele {self.ele}")
 
     def set_mouse_free_look(self, _x, _y):
         self.view_yaw = _x/ self.screen_scale*57.3*self.view_rate
@@ -214,12 +215,15 @@ class game_aircraft_control():
         if self.thr < 0:
             self.thr = 0
 
-    def update(self):
+    def pre_update(self):
         self.telem.update()
+        self.OK = self.telem.OK
+
+    def update(self):
         self.controller_update()
         self.vjoyman.set_joystick_x(self.ail)
         self.vjoyman.set_joystick_y(self.ele)
-        self.vjoyman.set_joystick_rz(self.rud)
+        # self.vjoyman.set_joystick_rz(self.rud)
         self.vjoyman.set_joystick_z(-self.thr)
         self.tracker.send_pose([self.view_yaw, self.view_pitch, 0], [0, 0, 0])
 

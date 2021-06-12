@@ -58,26 +58,26 @@ class MainWindow(QtWidgets.QMainWindow):
         self.status = QLabel('', self)
         self.status.move(30, 50)
         self.status.setFont(QFont('SansSerif', 15))
-        self.status.setFixedSize(1000, 50)
+        self.status.setFixedSize(1000, 100)
 
 
         self.roll = QLabel('Ail: 0%', self)
-        self.roll.move(30, 120)
+        self.roll.move(30, 170)
         self.roll.setFont(QFont('SansSerif', 15))
         self.roll.setFixedSize(400, 50)
 
         self.ele = QLabel('ELE: 0%', self)
-        self.ele.move(30, 150)
+        self.ele.move(30, 200)
         self.ele.setFont(QFont('SansSerif', 15))
         self.ele.setFixedSize(400, 50)
 
         self.rud = QLabel('Rud: 0%', self)
-        self.rud.move(30, 180)
+        self.rud.move(30, 230)
         self.rud.setFont(QFont('SansSerif', 15))
         self.rud.setFixedSize(400, 50)
 
         self.thr = QLabel('THR: 0%', self)
-        self.thr.move(30, 210)
+        self.thr.move(30, 260)
         self.thr.setFont(QFont('SansSerif', 15))
         self.thr.setFixedSize(400, 50)
         self.setGeometry(DCS_X, DCS_Y, DCS_W, DCS_H)
@@ -161,8 +161,9 @@ class MainWindow(QtWidgets.QMainWindow):
 
 
     def timerEvent(self, e):
+        self.aircraft_con.pre_update()
         top_win = win32gui.GetWindowText(win32gui.GetForegroundWindow())
-        if top_win != DCS_WIN_NAME and top_win != WIN_NAME:
+        if top_win != DCS_WIN_NAME and top_win != WIN_NAME or not self.aircraft_con.OK:
             return
 
         if self.count % 10 == 0:
@@ -170,6 +171,7 @@ class MainWindow(QtWidgets.QMainWindow):
             self.ele.setText("ELE: {:.1f}%".format(self.aircraft_con.get_ele()*100))
             self.rud.setText("RUD: {:.1f}%".format(self.aircraft_con.get_rud()*100))
             self.thr.setText("THR: {:.1f}%".format(self.aircraft_con.get_thr()*100))
+            
         _m = mouse.get_position()
         self.mouse = _m
         self.set_mouse_cur_pos_new(_m, 0.01)
