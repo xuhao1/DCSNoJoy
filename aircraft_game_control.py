@@ -4,6 +4,7 @@ import time
 import socket
 import struct
 import math
+import select
 
 THR_RATE = 0.7
 UDP_IP = "127.0.0.1"
@@ -77,13 +78,18 @@ class DCSTelem():
         self.dcs_sock = socket.socket(socket.AF_INET, # Internet
                      socket.SOCK_DGRAM) # UDP
         self.dcs_sock.bind((DCS_UDP_IP, DCS_UDP_PORT))
+        self.dcs_sock.setblocking(0)
 
         self.OK = False
 
     def update(self):
-        msg, addr = self.dcs_sock.recvfrom(1024) # buffer size is 1024 bytes
-        self.data = self.parse_data(msg)
-        self.OK = True
+        ready = select.select([self.dcs_sock], [], [], 0.001)
+        if ready[0]:
+            msg, addr = self.dcs_sock.recvfrom(1024) # buffer size is 1024 bytes
+            self.data = self.parse_data(msg)
+            if not self.OK:
+                self.OK = True
+                print("DCS Ready")
 
     def parse_data(self, data):
         data = data.decode("utf-8") 
@@ -121,12 +127,13 @@ class game_aircraft_control():
         self.p_rollrate = 0.4
         self.p_pitchrate = 0.4
 
-        self.p_yaw = 0.5
 
         self.yaw_sp = 0
         self.pitch_sp = 0
         self.roll_sp = 0
 
+        #p yaw to roll
+        self.p_yaw = 0.5
         #Note w means world frame
         self.yawrate_w_sp = 0
         
@@ -153,24 +160,26 @@ class game_aircraft_control():
             self.ail = x_sp*self.ailrate
             self.ele = -y_sp*self.elerate
         elif self.control_style == "warthunder":
-            self.roll_sp = x_sp*self.att_sp_rate
-            # self.yaw_sp = x_sp*self.att_sp_rate
+            # self.roll_sp = x_sp*self.att_sp_rate
+            self.yaw_sp = x_sp*self.att_sp_rate
             self.pitch_sp = -y_sp*self.att_sp_rate
 
     
     def control_body_aim(self, yaw_sp, pitch_sp):
         #need to update to quaternion
         dyaw = self.yaw_sp - self.telem.data["yaw"]
-        phases = (dyaw + np.pi) % (2 * np.pi) - np.pi
+        dyaw = (dyaw + np.pi) % (2 * np.pi) - np.pi
+
+        #We may also consider use g instead
+        self.yawrate_w_sp = dyaw * self.p_yaw
 
     def controller_update(self):
         if self.telem.OK:
-
             # self.roll_sp = dyaw*self.p_yaw
             self.ail = (self.roll_sp - self.telem.data["roll"])*self.p_roll - self.p_rollrate*self.telem.data["rollrate"]
             # self.ail = self.roll_sp - self.p_rollrate*self.telem.data["rollrate"]
             self.ele = (self.pitch_sp - self.telem.data["pitch"])*self.p_pitch - self.p_pitchrate*self.telem.data["pitchrate"]
-            print(f"yawsp {self.yaw_sp*57.3:3.1f} rollsp {self.roll_sp*57.3:3.1f} roll {self.telem.data['roll']*57.3:3.1f} rollrate {self.telem.data['rollrate']*57.3:3.1f}  ail {self.ail}")
+            # print(f"yawsp {self.yaw_sp*57.3:3.1f} rollsp {self.roll_sp*57.3:3.1f} roll {self.telem.data['roll']*57.3:3.1f} rollrate {self.telem.data['rollrate']*57.3:3.1f}  ail {self.ail}")
             # print(f"rollsp {self.roll_sp*57.3:3.1f} roll {self.telem.data['roll']*57.3:3.1f} rollrate {self.telem.data['rollrate']*57.3:3.1f}  ail {self.ail}")
             # print(f"pitch_sp {self.pitch_sp} pitch {self.telem.data['pitch']} ele {self.ele}")
 
