@@ -43,7 +43,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.setGeometry(0, 500, 1024, 768)
 
         self.timer = QBasicTimer()
-        self.timer.start(10, self)
+        self.timer.start(5, self)
 
         self.mouse_x0 = None
         self.mouse_y0 = None
