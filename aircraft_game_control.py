@@ -58,7 +58,7 @@ class game_aircraft_control():
         self.ail = 0
         self.ele = 0
         self.rud = 0
-        self.thr = 0.7
+        self.thr = 0.9
 
         self.ail_user = 0
         self.ele_user = 0
@@ -173,11 +173,13 @@ class game_aircraft_control():
 
     def status(self):
         if self.telem.OK:
-            _s = f"{self.telem.name} TAS: {self.telem.tas*3.6:3.1f}km/h Aoa {self.telem.aoa:3.1f}\n"
+            _s = f"{self.telem.name} t {self.telem.time:3.1f}\n"
+            _s += f"TAS: {self.telem.tas*3.6:3.1f}km/h AoA {self.telem.aoa:3.1f}\n"
             _s += f"yaw: sp {self.yaw_sp*57.3:3.1f} raw {self.telem.yaw*57.3:3.1f} rate_w_sp {self.yawrate_w_sp*57.3:3.1f} rate {self.telem.data['yawrate']*57.3:3.1f}\n"
             _s += f"pitch sp: {self.pitch_sp*57.3:3.1f} pitch {self.telem.pitch*57.3:3.1f} rate_b_sp {self.pitchrate_b_sp*57.3:3.1f} rate {self.telem.data['pitchrate']*57.3:3.1f}\n"
             _s += f"roll: sp {self.roll_sp*57.3:3.1f} raw {self.telem.roll*57.3:3.1f} rate {self.telem.data['rollrate']*57.3:3.1f}\n"
-            _s += f"x {self.telem.x:5.1f} y {self.telem.y:3.1f} z {self.telem.z:3.1f}\n"
+            # _s += f"x {self.telem.x:5.1f} y {self.telem.y:3.1f} z {self.telem.z:3.1f}\n"
+            _s += f"thr {self.thr*100:5.1f}%"
             return _s
         return "Wait for connection"
 
@@ -254,7 +256,7 @@ class game_aircraft_control():
         mat = quaternion_matrix(quaternion_inverse(self.q_view_abs))[0:3,0:3]
         T_cam = np.dot(mat, [CAMERA_X, 0, CAMERA_Z])*100
         
-        self.tracker.send_pose([euler[2]*57.3, euler[1]*57.3, 0], [T_cam[0], T_cam[1], T_cam[2]])
+        self.tracker.send_pose([euler[2]*57.3, euler[1]*57.3, 0], [0, 0, 0])
 
     def cameraPose(self):
         T_cam =  np.array([self.telem.x, self.telem.y, self.telem.z])
@@ -274,11 +276,11 @@ class game_aircraft_control():
             self.vjoyman.set_joystick_y(ele)
             self.vjoyman.set_joystick_rz(rud)
             self.vjoyman.set_joystick_z(-self.thr)
-            # self.telem.send_dcs_command()
             self.set_camera_view()
         else:
-            q_cam, T_cam = self.cameraPose()
-            self.telem.set_camera_pose(q_cam, T_cam)
+            self.set_camera_view()
+            # q_cam, T_cam = self.cameraPose()
+            # self.telem.set_camera_pose(q_cam, T_cam)
             self.telem.set_control(ail, ele, rud, self.thr)
             self.telem.send_dcs_command()
 

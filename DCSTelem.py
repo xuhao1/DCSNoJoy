@@ -35,12 +35,7 @@ class DCSTelem():
         #9-12 camera T
         #12-16 ail ele rud thr
         _s = ""
-        # for i in range(3):
-        #     for j in range(3):
-        #         _s += f"{self.R_cam[i, j]:3.4f},"
-        # for i in range(3):
-        #     _s += f"{self.T_cam[i] :3.4f},"
-        
+        _s += f"{self.time:3.4f},"
         _s += f"{self.ail:3.4f},"
         _s += f"{self.ele:3.4f},"
         _s += f"{self.rud:3.4f},"
@@ -60,9 +55,11 @@ class DCSTelem():
         self.thr = thr
 
     def update(self):
-        ready = select.select([self.dcs_sock], [], [], 0.002)
-        if ready[0]:
+        ready = select.select([self.dcs_sock], [], [], 0.001)
+        while ready[0]:
             msg, addr = self.dcs_sock.recvfrom(1024) # buffer size is 1024 bytes
+            ready = select.select([self.dcs_sock], [], [], 0.001) #Recv last
+
             self.data = self.parse_data(msg)
             for k in self.data:
                 setattr(self, k, self.data[k])
@@ -80,41 +77,6 @@ class DCSTelem():
             # print("Rcam0 ypr", y*57.3, p*57.3, r*57.3)
             self.q_cam = q_cam
             
-            # _cvt = np.array([[1, 0, 0], 
-            #                 [0, 0, 1], 
-            #                 [0, -1, 0]])
-            # R_cam[0:3, 0:3] = _cvt@self.R_cam[0:3,0:3]
-            # q_cam = quaternion_from_matrix(R_cam)
-            # r, p, y = euler_from_quaternion(q_cam, "rxyz")
-            # print("Rcam1 ypr", y*57.3, p*57.3, r*57.3)
-
-            # R_cam = self.R_cam
-            # _cvt = np.array([[1, 0, 0], 
-            #                 [0, 0, -1], 
-            #                 [0, 1, 0]])
-            # R_cam[0:3, 0:3] = _cvt@self.R_cam[0:3,0:3]
-            # q_cam = quaternion_from_matrix(R_cam)
-            # r, p, y = euler_from_quaternion(q_cam, "rxyz")
-            # print("Rcam2 ypr", y*57.3, p*57.3, r*57.3)
-
-            # R_cam = self.R_cam
-            # _cvt = np.array([[1, 0, 0], 
-            #                 [0, 0, 1], 
-            #                 [0, -1, 0]])
-            # R_cam[0:3, 0:3] = self.R_cam[0:3,0:3]@_cvt
-            # q_cam = quaternion_from_matrix(R_cam)
-            # r, p, y = euler_from_quaternion(q_cam, "rxyz")
-            # print("Rcam3 ypr", y*57.3, p*57.3, r*57.3)
-
-            # R_cam = self.R_cam
-            # _cvt = np.array([[1, 0, 0], 
-            #                 [0, 0, -1], 
-            #                 [0, 1, 0]])
-            # R_cam[0:3, 0:3] = self.R_cam[0:3,0:3]@_cvt
-            # q_cam = quaternion_from_matrix(R_cam)
-            # r, p, y = euler_from_quaternion(q_cam, "rxyz")
-            # print("Rcam4 ypr", y*57.3, p*57.3, r*57.3)
-
             if not self.OK:
                 self.OK = True
                 print("DCS Ready")

@@ -42,43 +42,15 @@ function parse_incoming_message(data)
     for num in string.gmatch(data, '([^,]+)') do
         table.insert(numbers, tonumber(num))
     end
-
-    -- cam_pose.p.x = numbers[10]
-    -- cam_pose.p.y = numbers[11]
-    -- cam_pose.p.z = numbers[12]
-
-    -- cam_pose.x.x = numbers[1]
-    -- cam_pose.y.x = numbers[2]
-    -- cam_pose.z.x = numbers[3]
-
-    -- cam_pose.x.y = numbers[4]
-    -- cam_pose.y.y = numbers[5]
-    -- cam_pose.z.y = numbers[6]
-
-    -- cam_pose.x.z = numbers[7]
-    -- cam_pose.y.z = numbers[8]
-    -- cam_pose.z.z = numbers[9]
-
-    -- cam_pose.x.x = numbers[1]
-    -- cam_pose.x.y = numbers[2]
-    -- cam_pose.x.z = numbers[3]
-    -- cam_pose.y.x = numbers[4]
-    -- cam_pose.y.y = numbers[5]
-    -- cam_pose.y.z = numbers[6]
-    -- cam_pose.z.x = numbers[7]
-    -- cam_pose.z.y = numbers[8]
-    -- cam_pose.z.z = numbers[9]
-
-    LoSetCommand(2007, 1.0) -- elevator
-
+    local time = LoGetModelTime()
+    local dt = time - numbers[1]
     log.write("EasyControl.EXPORT", log.INFO, string.format(
-        "set camera pos %f %f %f ctrl %f %f %f %f", 
-        cam_pose.p.x, cam_pose.p.y, cam_pose.p.z, numbers[13], numbers[14], numbers[15], numbers[16]))
-
-    -- LoSetCommand(2001, numbers[14]) -- elevator
-    -- LoSetCommand(2002, numbers[13]) -- aileron
-    -- LoSetCommand(2003, numbers[15]) -- rudder
-    -- LoSetCommand(2004, numbers[16]) -- thrust
+        "timenow %f dt %f ctrl %f %f %f %f", 
+        time, dt*1000, numbers[3], numbers[2], numbers[4], numbers[5]))
+    LoSetCommand(2001, numbers[3]) -- elevator
+    LoSetCommand(2002, numbers[2]) -- aileron
+    LoSetCommand(2003, numbers[4]) -- rudder
+    LoSetCommand(2004, -numbers[5]) -- thrust
     -- LoSetCameraPosition(cam_pose)
 end
 
@@ -127,7 +99,7 @@ function LuaExportActivityNextEvent(t)
         local tas = LoGetTrueAirSpeed()
         local omega = LoGetAngularVelocity()
         local cam_pose = LoGetCameraPosition()
-
+        local time = LoGetModelTime()
         -- cam_pose.p.x = 
         data = connectSocRecv:receive()
         if data then
@@ -135,9 +107,9 @@ function LuaExportActivityNextEvent(t)
         end
         
         local _datalog = string.format(
-            "name=%s altBar=%.3f x=%.5f y=%.5f z=%.5f pitch=%.5f roll=%.5f yaw=%.5f yawrate=%.5f pitchrate=%.5f rollrate=%.5f tas=%.3f aoa=%.5f \
+            "name=%s time=%.3f altBar=%.3f x=%.5f y=%.5f z=%.5f pitch=%.5f roll=%.5f yaw=%.5f yawrate=%.5f pitchrate=%.5f rollrate=%.5f tas=%.3f aoa=%.5f \
             Rcamxx=%.5f  Rcamxy=%.5f Rcamxz=%.5f Rcamyx=%.5f  Rcamyy=%.5f  Rcamyz=%.5f  Rcamzx=%.5f  Rcamzy=%.5f Rcamzz=%.5f Tcamx=%.5f Tcamy=%.5f Tcamz=%.5f\n", 
-            myData.Name, altBar, pos.x, pos.y, pos.z, pitch, roll, yaw, omega.y, omega.z, omega.x, tas, aoa,
+            myData.Name, time, altBar, pos.x, pos.y, pos.z, pitch, roll, yaw, omega.y, omega.z, omega.x, tas, aoa,
             cam_pose.x.x, cam_pose.x.y, cam_pose.x.z, 
             cam_pose.y.x, cam_pose.y.y, cam_pose.y.z, 
             cam_pose.z.x, cam_pose.z.y, cam_pose.z.z, 

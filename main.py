@@ -90,7 +90,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.is_free_look = False
 
         self.timer = QBasicTimer()
-        self.timer.start(5, self)
+        self.timer.start(MAIN_WIN_DURATION, self)
 
         self.count = 0
     
@@ -155,11 +155,10 @@ class MainWindow(QtWidgets.QMainWindow):
         top_win = win32gui.GetWindowText(win32gui.GetForegroundWindow())
         if top_win != DCS_WIN_NAME and top_win != WIN_NAME or not self.aircraft_con.OK or not self.aircraft_con.updated:
             return
-
-        self.set_mouse_cur_pos_new(_m, 0.01)
+        if self.count % 3 == 0:
+            self.set_mouse_cur_pos_new(_m, MAIN_WIN_DURATION*3/1000.0)
 
         self.keyboard_watcher()
-
         self.aircraft_con.update()
         self.count += 1
 
