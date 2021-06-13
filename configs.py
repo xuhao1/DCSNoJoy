@@ -23,3 +23,21 @@ p_yaw = 3.0
 view_filter_rate = 0.005
 
 CAM_PITCH_OFFSET = 8/57.3
+
+
+#Keyboard shortcuts
+keyboard_freelook = "c"
+
+keyboard_inc_thr = "shift"
+keyboard_dec_thr = "ctrl"
+
+keyboard_ele_max = "s"
+keyboard_ele_min = "w"
+
+keyboard_ail_max = "d"
+keyboard_ail_min = "a"
+
+keyboard_rud_max = "e"
+keyboard_rud_min = "q"
+
+keyboard_exit = "shift+esc"

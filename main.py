@@ -76,8 +76,6 @@ class MainWindow(QtWidgets.QMainWindow):
 
         self.load_image_label()
 
-        self.mouse_x0 = None
-        self.mouse_y0 = None
         self.vmouse_x = 0
         self.vmouse_y = 0
 
@@ -119,11 +117,6 @@ class MainWindow(QtWidgets.QMainWindow):
         x = m[0]
         y = m[1]
         self.mouse = m
-        if self.mouse_x0 == None:
-            self.mouse_x0 = x
-
-        if self.mouse_y0 == None:
-            self.mouse_y0 = y
         
         dmouse_x = (x - self.windows_center_x0)*self.vmouse_rate
         dmouse_y = (y - self.windows_center_y0)*self.vmouse_rate
@@ -171,40 +164,36 @@ class MainWindow(QtWidgets.QMainWindow):
         self.count += 1
 
     def keyboard_watcher(self):
-        if keyboard.is_pressed("c"):
+        if keyboard.is_pressed(keyboard_freelook):
             self.is_free_look = True
         else:
             self.is_free_look = False
 
-        if keyboard.is_pressed("alt+r"):
-            self.mouse_x0 = None
-            self.mouse_y0 = None
-
-        if keyboard.is_pressed("shift"):
+        if keyboard.is_pressed(keyboard_inc_thr):
             self.aircraft_con.inc_thr(0.01)
 
-        if keyboard.is_pressed("ctrl"):
+        if keyboard.is_pressed(keyboard_dec_thr):
             self.aircraft_con.dec_thr(0.01)
         
-        if keyboard.is_pressed("shift+esc"):
+        if keyboard.is_pressed(keyboard_exit):
             sys.exit(0)
 
-        if keyboard.is_pressed("w"):
+        if keyboard.is_pressed(keyboard_ele_min):
             self.aircraft_con.set_user_ele(-1)
 
-        if keyboard.is_pressed("s"):
+        if keyboard.is_pressed(keyboard_ele_max):
             self.aircraft_con.set_user_ele(1)
 
-        if keyboard.is_pressed("a"):
+        if keyboard.is_pressed(keyboard_ail_min):
             self.aircraft_con.set_user_ail(-1)
 
-        if keyboard.is_pressed("d"):
+        if keyboard.is_pressed(keyboard_ail_max):
             self.aircraft_con.set_user_ail(1)
 
-        if keyboard.is_pressed("q"):
+        if keyboard.is_pressed(keyboard_rud_min):
             self.aircraft_con.set_user_rud(-1)
 
-        if keyboard.is_pressed("e"):
+        if keyboard.is_pressed(keyboard_rud_max):
             self.aircraft_con.set_user_rud(1)
         
 
