@@ -16,6 +16,8 @@ DCS_CX = 1000
 DCS_CY = 500
 DCS_WIN_NAME = "Digital Combat Simulator"
 WIN_NAME = "DCSEasyControl"
+from win32api import GetSystemMetrics
+
 
 
 
@@ -25,6 +27,11 @@ def callback(hwnd, extra):
     y = rect[1]
     w = rect[2] - x
     h = rect[3] - y
+
+    if w == 0:
+        w = GetSystemMetrics(0)
+        h = GetSystemMetrics(1)
+
     global DCS_X, DCS_Y, DCS_W, DCS_H, DCS_CX, DCS_CY
 
     if win32gui.GetWindowText(hwnd) == DCS_WIN_NAME:
@@ -58,30 +65,9 @@ class MainWindow(QtWidgets.QMainWindow):
         self.status = QLabel('', self)
         self.status.move(30, 50)
         self.status.setFont(QFont('SansSerif', 15))
-        self.status.setFixedSize(1000, 100)
+        self.status.setFixedSize(1000, 200)
 
-
-        self.roll = QLabel('Ail: 0%', self)
-        self.roll.move(30, 170)
-        self.roll.setFont(QFont('SansSerif', 15))
-        self.roll.setFixedSize(400, 50)
-
-        self.ele = QLabel('ELE: 0%', self)
-        self.ele.move(30, 200)
-        self.ele.setFont(QFont('SansSerif', 15))
-        self.ele.setFixedSize(400, 50)
-
-        self.rud = QLabel('Rud: 0%', self)
-        self.rud.move(30, 230)
-        self.rud.setFont(QFont('SansSerif', 15))
-        self.rud.setFixedSize(400, 50)
-
-        self.thr = QLabel('THR: 0%', self)
-        self.thr.move(30, 260)
-        self.thr.setFont(QFont('SansSerif', 15))
-        self.thr.setFixedSize(400, 50)
         self.setGeometry(DCS_X, DCS_Y, DCS_W, DCS_H)
-
 
         self.aim_tgt = QLabel('+', self)
         self.aim_tgt.move(0, 0)
@@ -157,11 +143,16 @@ class MainWindow(QtWidgets.QMainWindow):
 
     def move_virtual_mouse(self, x, y):
         #For window mode
-        self.virtual_mouse.move(int(x - 50 + DCS_W/2),int(y + DCS_H/2 - 125))
+        # self.virtual_mouse.move(int(x - 50 + DCS_W/2),int(y + DCS_H/2 - 125))
+
+        self.virtual_mouse.move(int(x - 50 + DCS_W/2),int(y + DCS_H/2 - 50))
 
     def move_aim_tgt(self, x, y):
         #For window mode
-        self.aim_tgt.move(int(x - 15 + DCS_W/2),int(y + DCS_H/2 - 90))
+        # self.aim_tgt.move(int(x - 15 + DCS_W/2),int(y + DCS_H/2 - 90))
+        
+        #Full screen
+        self.aim_tgt.move(int(x - 15 + DCS_W/2),int(y + DCS_H/2 - 15))
 
     def timerEvent(self, e):
         _m = mouse.get_position()
@@ -172,12 +163,6 @@ class MainWindow(QtWidgets.QMainWindow):
         if top_win != DCS_WIN_NAME and top_win != WIN_NAME or not self.aircraft_con.OK or not self.aircraft_con.updated:
             return
 
-        if self.count % 10 == 0:
-            self.roll.setText('Ail: {0:.1f}%'.format(self.aircraft_con.get_ail()*100))
-            self.ele.setText("ELE: {:.1f}%".format(self.aircraft_con.get_ele()*100))
-            self.rud.setText("RUD: {:.1f}%".format(self.aircraft_con.get_rud()*100))
-            self.thr.setText("THR: {:.1f}%".format(self.aircraft_con.get_thr()*100))
-            
         self.set_mouse_cur_pos_new(_m, 0.01)
 
         self.keyboard_watcher()
@@ -204,6 +189,23 @@ class MainWindow(QtWidgets.QMainWindow):
         if keyboard.is_pressed("shift+esc"):
             sys.exit(0)
 
+        if keyboard.is_pressed("w"):
+            self.aircraft_con.set_user_ele(-1)
+
+        if keyboard.is_pressed("s"):
+            self.aircraft_con.set_user_ele(1)
+
+        if keyboard.is_pressed("a"):
+            self.aircraft_con.set_user_ail(-1)
+
+        if keyboard.is_pressed("d"):
+            self.aircraft_con.set_user_ail(1)
+
+        if keyboard.is_pressed("q"):
+            self.aircraft_con.set_user_rud(-1)
+
+        if keyboard.is_pressed("e"):
+            self.aircraft_con.set_user_rud(1)
         
 
 

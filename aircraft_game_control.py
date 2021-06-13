@@ -102,6 +102,9 @@ class DCSTelem():
         if ready[0]:
             msg, addr = self.dcs_sock.recvfrom(1024) # buffer size is 1024 bytes
             self.data = self.parse_data(msg)
+            for k in self.data:
+                setattr(self, k, self.data[k])
+
             if not self.OK:
                 self.OK = True
                 print("DCS Ready")
@@ -109,10 +112,12 @@ class DCSTelem():
 
     def parse_data(self, data):
         data = data.decode("utf-8") 
-        m = re.findall(r'([a-zA-Z]+)=(-?\d+(\.\d*)?)', data)
+        # m = re.findall(r'([a-zA-Z]+)=(-?\d+(\.\d*)?)', data)
+        m = re.findall(r'([a-zA-Z]+)=(-?\d+(\.\d*)?|\S+)', data)
         values = {}
         for k, v, _ in m:
-            v = float(v)
+            if k != "name":
+                v = float(v)
             values[k] = v
         return values
 
@@ -127,6 +132,10 @@ class game_aircraft_control():
         self.rud = 0
         self.thr = 0.7
 
+        self.ail_user = 0
+        self.ele_user = 0
+        self.rud_user = 0
+
         self.view_yaw = 0
         self.view_pitch = 0
 
@@ -137,6 +146,8 @@ class game_aircraft_control():
         self.q_att_tgt = np.array([1, 0, 0, 0], dtype=float) # Control target, no roll
 
         self.q_att = np.array([1, 0, 0, 0], dtype=float)
+
+        self.q_cam_pitch = quaternion_from_euler(0, CAM_PITCH_OFFSET, 0)
 
         self.yaw_sp = None
         self.pitch_sp = None
@@ -181,9 +192,9 @@ class game_aircraft_control():
             self.ele = -y_sp*elerate
         elif control_style == "warthunder" and self.OK and self.updated:
             if self.yaw_sp == None:
-                self.yaw_sp = self.telem.data['yaw']
-                self.pitch_sp = self.telem.data['pitch']
-                self.roll_sp = self.telem.data['roll']
+                self.yaw_sp = self.telem.yaw
+                self.pitch_sp = self.telem.pitch
+                self.roll_sp = self.telem.roll
                 self.q_att_tgt = quaternion_from_euler(0, self.pitch_sp, self.yaw_sp)
 
             ox = 0
@@ -197,6 +208,7 @@ class game_aircraft_control():
     def move_aim_mouse(self):
         if self.pitch_sp is not None:
             rel_tgt = quaternion_multiply(quaternion_inverse(self.q_view_abs), self.q_att_tgt)
+            rel_tgt = quaternion_multiply(rel_tgt, self.q_cam_pitch)
             mat = quaternion_matrix(rel_tgt)[0:3,0:3]
             v = np.dot(mat, [1, 0, 0])
             v = v / v[0]
@@ -207,6 +219,7 @@ class game_aircraft_control():
     def move_aim_tgt(self):
         if self.pitch_sp is not None:
             rel_tgt = quaternion_multiply(quaternion_inverse(self.q_view_abs), self.q_att)
+            rel_tgt = quaternion_multiply(rel_tgt, self.q_cam_pitch)
             mat = quaternion_matrix(rel_tgt)[0:3,0:3]
             v = np.dot(mat, [1, 0, 0])
             v = v / v[0]
@@ -225,18 +238,19 @@ class game_aircraft_control():
 
         #We may also consider use g instead
         self.yawrate_w_sp = dyaw * p_yaw
-        self.yawrate_b_sp = self.yawrate_w_sp*math.cos(self.telem.data['pitch'])*math.cos(self.telem.data['roll'])
+        self.yawrate_b_sp = self.yawrate_w_sp*math.cos(self.telem.pitch)*math.cos(self.telem.roll)
         
-        self.pitchrate_b_sp = self.yawrate_w_sp*math.cos(self.telem.data['pitch'])*math.sin(self.telem.data['roll'])
+        self.pitchrate_b_sp = self.yawrate_w_sp*math.cos(self.telem.pitch)*math.sin(self.telem.roll)
         self.roll_sp = float_constrain(self.yawrate_w_sp*p_yawrate_w_to_roll, -MAX_BANK, MAX_BANK)
 
         self.q_att_sp = quaternion_from_euler(self.roll_sp, self.pitch_sp, self.yaw_sp)
 
     def status(self):
         if self.telem.OK:
-            _s =  f"yaw: sp {self.yaw_sp*57.3:3.1f} raw {self.telem.data['yaw']*57.3:3.1f} rate_w_sp {self.yawrate_w_sp*57.3:3.1f} rate {self.telem.data['yawrate']*57.3:3.1f}\n"
-            _s += f"pitch sp: {self.pitch_sp*57.3:3.1f} pitch {self.telem.data['pitch']*57.3:3.1f} rate_b_sp {self.pitchrate_b_sp*57.3:3.1f} rate {self.telem.data['pitchrate']*57.3:3.1f}\n"
-            _s += f"roll: sp {self.roll_sp*57.3:3.1f} raw {self.telem.data['roll']*57.3:3.1f} rate {self.telem.data['rollrate']*57.3:3.1f}"
+            _s = f"{self.telem.name} TAS: {self.telem.tas*3.6:3.1f}km/h Aoa {self.telem.aoa:3.1f}\n"
+            _s += f"yaw: sp {self.yaw_sp*57.3:3.1f} raw {self.telem.yaw*57.3:3.1f} rate_w_sp {self.yawrate_w_sp*57.3:3.1f} rate {self.telem.data['yawrate']*57.3:3.1f}\n"
+            _s += f"pitch sp: {self.pitch_sp*57.3:3.1f} pitch {self.telem.pitch*57.3:3.1f} rate_b_sp {self.pitchrate_b_sp*57.3:3.1f} rate {self.telem.data['pitchrate']*57.3:3.1f}\n"
+            _s += f"roll: sp {self.roll_sp*57.3:3.1f} raw {self.telem.roll*57.3:3.1f} rate {self.telem.data['rollrate']*57.3:3.1f}\n"
             return _s
         return "Wait for connection"
 
@@ -251,8 +265,8 @@ class game_aircraft_control():
 
                 # self.ail = self.roll_sp - self.p_rollrate*self.telem.data["rollrate"]
                 # print()
-                # print(f"rollsp {self.roll_sp*57.3:3.1f} roll {self.telem.data['roll']*57.3:3.1f} rollrate {self.telem.data['rollrate']*57.3:3.1f}  ail {self.ail}")
-                # print(f"pitch_sp {self.pitch_sp} pitch {self.telem.data['pitch']} ele {self.ele}")
+                # print(f"rollsp {self.roll_sp*57.3:3.1f} roll {self.telem.roll*57.3:3.1f} rollrate {self.telem.data['rollrate']*57.3:3.1f}  ail {self.ail}")
+                # print(f"pitch_sp {self.pitch_sp} pitch {self.telem.pitch} ele {self.ele}")
         self.telem.updated = False
 
     def set_mouse_free_look(self, _x, _y):
@@ -270,6 +284,15 @@ class game_aircraft_control():
             self.q_view_abs = quaternion_from_euler(0, self.view_pitch, self.view_yaw)
             self.last_free_look = False
 
+    def set_user_ele(self, ele):
+        self.user_ele = ele 
+
+    def set_user_ail(self, ail):
+        self.user_ail = ail 
+
+    def set_user_rud(self, rud):
+        self.user_rud = rud
+
     def inc_thr(self, dt):
         self.thr += dt*THR_RATE
         if self.thr > 1:
@@ -284,6 +307,11 @@ class game_aircraft_control():
         self.telem.update()
         self.OK = self.telem.OK
         self.updated = self.telem.updated
+
+        self.user_ail = None
+        self.user_ele = None
+        self.user_rud = None
+
         if self.OK and self.updated:
             self.q_att = quaternion_from_euler(self.telem.data["roll"], self.telem.data["pitch"], self.telem.data["yaw"])
             _1, _2 = self.move_aim_mouse()
@@ -298,9 +326,13 @@ class game_aircraft_control():
 
     def update(self):
         self.controller_update()
-        self.vjoyman.set_joystick_x(self.ail)
-        self.vjoyman.set_joystick_y(self.ele)
-        self.vjoyman.set_joystick_rz(self.rud)
+        ail = self.user_ail if self.user_ail else self.ail
+        ele = self.user_ele if self.user_ele else self.ele
+        rud = self.user_rud if self.user_rud else self.rud
+
+        self.vjoyman.set_joystick_x(ail)
+        self.vjoyman.set_joystick_y(ele)
+        self.vjoyman.set_joystick_rz(rud)
         self.vjoyman.set_joystick_z(-self.thr)
         self.set_camera_view()
 
