@@ -35,11 +35,11 @@ class DCSTelem():
         #9-12 camera T
         #12-16 ail ele rud thr
         _s = ""
-        for i in range(3):
-            for j in range(3):
-                _s += f"{self.R_cam[i, j]:3.4f},"
-        for i in range(3):
-            _s += f"{self.T_cam[i] :3.4f},"
+        # for i in range(3):
+        #     for j in range(3):
+        #         _s += f"{self.R_cam[i, j]:3.4f},"
+        # for i in range(3):
+        #     _s += f"{self.T_cam[i] :3.4f},"
         
         _s += f"{self.ail:3.4f},"
         _s += f"{self.ele:3.4f},"

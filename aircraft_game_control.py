@@ -250,7 +250,11 @@ class game_aircraft_control():
         
         q_rel = quaternion_multiply(quaternion_inverse(self.q_att), self.q_view_abs)
         euler = euler_from_quaternion(q_rel)
-        self.tracker.send_pose([euler[2]*57.3, euler[1]*57.3, 0], [0, 0, 0])
+
+        mat = quaternion_matrix(quaternion_inverse(self.q_view_abs))[0:3,0:3]
+        T_cam = np.dot(mat, [CAMERA_X, 0, CAMERA_Z])*100
+        
+        self.tracker.send_pose([euler[2]*57.3, euler[1]*57.3, 0], [T_cam[0], T_cam[1], T_cam[2]])
 
     def cameraPose(self):
         T_cam =  np.array([self.telem.x, self.telem.y, self.telem.z])
@@ -270,6 +274,7 @@ class game_aircraft_control():
             self.vjoyman.set_joystick_y(ele)
             self.vjoyman.set_joystick_rz(rud)
             self.vjoyman.set_joystick_z(-self.thr)
+            # self.telem.send_dcs_command()
             self.set_camera_view()
         else:
             q_cam, T_cam = self.cameraPose()
