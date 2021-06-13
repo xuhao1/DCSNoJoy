@@ -1,6 +1,7 @@
 import math
 import numpy as np
 import struct
+from transformations import *
 
 def float_constrain(v, min, max):
     if v < min:
@@ -28,3 +29,9 @@ def JoyEXP(v,exp):
     if math.fabs(v) < 0.001:
         return 0
     return math.pow(math.fabs(v),exp)* v / math.fabs(v)
+
+def att_err_to_tangent_space(q_sp, q):
+    dq = quaternion_multiply(quaternion_inverse(q), q_sp)
+    angle, axis, _= rotation_from_matrix(quaternion_matrix(dq))
+    dw = angle*axis
+    return dw

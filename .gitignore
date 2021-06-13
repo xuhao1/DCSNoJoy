@@ -1,3 +1,4 @@
 *.pyc
 Untitled.ipynb
 .ipynb_checkpoints/Untitled-checkpoint.ipynb
+*.code-workspace

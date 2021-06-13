@@ -2,12 +2,11 @@ import math
 import time
 import socket
 import math
-import select
 from transformations import *
 from configs import *
 from utils import *
+from DCSTelem import *
 import socket
-import re
 
 if USE_VJOY:
     import pyvjoy
@@ -48,83 +47,6 @@ class VJoyManager(object):
     def set_joystick_ry(self, value):
         self.j.set_axis(pyvjoy.HID_USAGE_RY, toHexCmd(value))
 
-class DCSTelem():
-    def __init__(self):
-        print("Trying to connect to DCS Telem")
-        self.dcs_sock = socket.socket(socket.AF_INET, # Internet
-                     socket.SOCK_DGRAM) # UDP
-        self.dcs_sock.bind((DCS_UDP_IP, DCS_UDP_PORT))
-        self.dcs_sock.setblocking(0)
-
-        self.dcs_sock_send = socket.socket(socket.AF_INET, # Internet
-                     socket.SOCK_DGRAM) # UDP
-
-        self.OK = False
-        self.updated = False
-
-        self.R_cam = np.eye(3, 3)
-        self.T_cam = np.eye(3)
-
-        self.ail = 0
-        self.ele = 0
-        self.rud = 0
-        self.thr = 0
-
-    def send_dcs(self, data):
-        self.dcs_sock_send.sendto(data.encode(), (DCS_UDP_IP, DCS_UDP_SEND_PORT))
-
-    def send_dcs_command(self):
-        #0-9 camera R, R01 R02.. R22
-        #9-12 camera T
-        #12-16 ail ele rud thr
-        _s = ""
-        for i in range(3):
-            for j in range(3):
-                _s += f"{self.R_cam[i, j]:3.4f},"
-        for i in range(3):
-            _s += f"{self.T_cam[i] :3.4f},"
-        
-        _s += f"{self.ail:3.4f},"
-        _s += f"{self.ele:3.4f},"
-        _s += f"{self.rud:3.4f},"
-        _s += f"{self.thr:3.4f}\n"
-
-        self.send_dcs(_s)
-
-    def set_camera_pose(self, q, T):
-        self.R_cam = quaternion_matrix(q)
-        self.T_cam = T
-        print("cam Pose", self.T_cam)
-
-    def set_control(self, ail, ele, rud, thr):
-        self.ail = ail
-        self.ele = ele
-        self.rud = rud
-        self.thr = thr
-
-    def update(self):
-        ready = select.select([self.dcs_sock], [], [], 0.002)
-        if ready[0]:
-            msg, addr = self.dcs_sock.recvfrom(1024) # buffer size is 1024 bytes
-            self.data = self.parse_data(msg)
-            for k in self.data:
-                setattr(self, k, self.data[k])
-
-            if not self.OK:
-                self.OK = True
-                print("DCS Ready")
-            self.updated = True
-
-    def parse_data(self, data):
-        data = data.decode("utf-8") 
-        # m = re.findall(r'([a-zA-Z]+)=(-?\d+(\.\d*)?)', data)
-        m = re.findall(r'([a-zA-Z]+)=(-?\d+(\.\d*)?|\S+)', data)
-        values = {}
-        for k, v, _ in m:
-            if k != "name":
-                v = float(v)
-            values[k] = v
-        return values
 
 class game_aircraft_control():
     def __init__(self, win_w, win_h):
@@ -233,14 +155,11 @@ class game_aircraft_control():
         else:
             return 0, 0
 
+
     def control_body_aim(self, q_tgt):
         #need to update to quaternion
-        if not self.is_free_look:
-            self.q_view_abs = quaternion_slerp(self.q_view_abs, self.q_att_tgt, view_filter_rate)
-
-
-        dyaw = self.yaw_sp - self.telem.data["yaw"]
-        dyaw = (dyaw + np.pi) % (2 * np.pi) - np.pi
+        dw = att_err_to_tangent_space(self.q_att_tgt, self.q_att)
+        dyaw = dw[2]
 
         #We may also consider use g instead
         self.yawrate_w_sp = dyaw * p_yaw
@@ -257,6 +176,7 @@ class game_aircraft_control():
             _s += f"yaw: sp {self.yaw_sp*57.3:3.1f} raw {self.telem.yaw*57.3:3.1f} rate_w_sp {self.yawrate_w_sp*57.3:3.1f} rate {self.telem.data['yawrate']*57.3:3.1f}\n"
             _s += f"pitch sp: {self.pitch_sp*57.3:3.1f} pitch {self.telem.pitch*57.3:3.1f} rate_b_sp {self.pitchrate_b_sp*57.3:3.1f} rate {self.telem.data['pitchrate']*57.3:3.1f}\n"
             _s += f"roll: sp {self.roll_sp*57.3:3.1f} raw {self.telem.roll*57.3:3.1f} rate {self.telem.data['rollrate']*57.3:3.1f}\n"
+            _s += f"x {self.telem.x:5.1f} y {self.telem.y:3.1f} z {self.telem.z:3.1f}\n"
             return _s
         return "Wait for connection"
 
@@ -267,12 +187,7 @@ class game_aircraft_control():
                 self.ail = (self.roll_sp - self.telem.data["roll"])*p_roll + p_rollrate*(self.rollrate_b_sp-self.telem.data["rollrate"])
                 self.ele = (self.pitch_sp - self.telem.data["pitch"])*p_pitch + p_pitchrate*(self.pitchrate_b_sp-self.telem.data["pitchrate"])
                 self.rud = p_yawrate*(self.yawrate_b_sp-self.telem.data["pitchrate"])
-                # self.ele = self.p_pitchrate*(self.pitchrate_b_sp-self.telem.data["pitchrate"])
 
-                # self.ail = self.roll_sp - self.p_rollrate*self.telem.data["rollrate"]
-                # print()
-                # print(f"rollsp {self.roll_sp*57.3:3.1f} roll {self.telem.roll*57.3:3.1f} rollrate {self.telem.data['rollrate']*57.3:3.1f}  ail {self.ail}")
-                # print(f"pitch_sp {self.pitch_sp} pitch {self.telem.pitch} ele {self.ele}")
         self.telem.updated = False
 
     def set_mouse_free_look(self, _x, _y):
@@ -326,6 +241,12 @@ class game_aircraft_control():
         return 0, 0, 0, 0
 
     def set_camera_view(self):
+        if not self.is_free_look:
+            self.q_view_abs = quaternion_slerp(self.q_view_abs, self.q_att_tgt, view_filter_rate)
+        
+        q_cam_real = self.telem.q_cam
+        dq = quaternion_multiply(quaternion_inverse(q_cam_real), self.q_view_abs)
+        
         q_rel = quaternion_multiply(quaternion_inverse(self.q_att), self.q_view_abs)
         euler = euler_from_quaternion(q_rel)
         self.tracker.send_pose([euler[2]*57.3, euler[1]*57.3, 0], [0, 0, 0])
