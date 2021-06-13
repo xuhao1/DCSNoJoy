@@ -10,8 +10,8 @@ DEFAULT_FOV = 67.4/57.3
 VIEW_OFFSET = 0
 MAX_BANK = 80/57.3
 
-CAMERA_X = 10
-CAMERA_Z = 5
+CAMERA_X = 100
+CAMERA_Z = 0
 
 screen_scale = 2000
 ailrate = 1.5
@@ -28,7 +28,7 @@ p_roll = 2.0
 p_pitch = 4.0
 p_rollrate = 1.0
 p_pitchrate = 1.0
-p_yawrate = 0.2
+p_yawrate = 0
 
 p_yawrate_w_to_roll = 3.0
 
@@ -58,4 +58,4 @@ keyboard_rud_min = "q"
 keyboard_exit = "shift+esc"
 
 # Do not modify below unless you understand
-USE_VJOY = False
+USE_VJOY = True

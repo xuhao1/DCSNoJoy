@@ -9,6 +9,9 @@ from utils import *
 import socket
 import re
 
+if USE_VJOY:
+    import pyvjoy
+
 class GameTracker:
     def __init__(self, ip="127.0.0.1", port=4242):
         self.UDP_IP = ip
@@ -25,7 +28,6 @@ class GameTracker:
 
 class VJoyManager(object):
     def __init__(self):
-        import pyvjoy
         self.j = pyvjoy.VJoyDevice(1)
     
     def set_joystick_x(self, value):
@@ -61,7 +63,7 @@ class DCSTelem():
         self.updated = False
 
         self.R_cam = np.eye(3, 3)
-        self.T_cam = np.eye(3, 3)
+        self.T_cam = np.eye(3)
 
         self.ail = 0
         self.ele = 0
@@ -92,6 +94,7 @@ class DCSTelem():
     def set_camera_pose(self, q, T):
         self.R_cam = quaternion_matrix(q)
         self.T_cam = T
+        print("cam Pose", self.T_cam)
 
     def set_control(self, ail, ele, rud, thr):
         self.ail = ail
@@ -345,12 +348,12 @@ class game_aircraft_control():
             self.vjoyman.set_joystick_y(ele)
             self.vjoyman.set_joystick_rz(rud)
             self.vjoyman.set_joystick_z(-self.thr)
-
-        q_cam, T_cam = self.cameraPose()
-        self.telem.set_camera_pose(q_cam, T_cam)
-        self.telem.set_control(ail, ele, rud, self.thr)
-        # self.set_camera_view()
-        self.telem.send_dcs_command()
+            self.set_camera_view()
+        else:
+            q_cam, T_cam = self.cameraPose()
+            self.telem.set_camera_pose(q_cam, T_cam)
+            self.telem.set_control(ail, ele, rud, self.thr)
+            self.telem.send_dcs_command()
 
 if __name__ == '__main__':
     aircraft_con = game_aircraft_control()
