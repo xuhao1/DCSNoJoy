@@ -8,6 +8,9 @@ socket = require("socket")
 host = "127.0.0.1"
 port = 27015
 
+port_recv = 27016
+
+
 function LuaExportStart()
     log_file = io.open("C:/Users/xuhao/Saved Games/DCS/Logs/EasyControl.log", "w")
     log.write("EasyControl.EXPORT", log.INFO, "initializing DCS Easy Control")
@@ -48,6 +51,22 @@ function LuaExportActivityNextEvent(t)
         end
     end
 
+    if connectSocRecv==nil then
+        -- log_file:write("try to open socket\n")
+        log.write("EasyControl.EXPORT", log.INFO, "try to open socket")
+        
+        connectSocRecv = assert(socket:udp())
+
+        connectSocRecv:setsockname("*", port_recv)
+        connectSocRecv:settimeout(0)
+
+        if connectSocRecv then
+            log.write("EasyControl.EXPORT", log.INFO, "recv socket ok")
+        else
+            return t+0.5
+        end
+    end
+
     local myData = LoGetSelfData()
     if (myData) then
         local altBar = LoGetAltitudeAboveSeaLevel()
@@ -60,11 +79,15 @@ function LuaExportActivityNextEvent(t)
         local tas = LoGetTrueAirSpeed()
         local omega = LoGetAngularVelocity()
         local cam_pos = LoGetCameraPosition()
-        log.write("EasyControl.EXPORT", log.INFO, string.format(
-            "type %d %d %d %d name %s cam Rxx=%.3f,Ryx=%.5f,Rzx=%.5f,p %.1f %.1f %.1f aircraft %.1f %.1f %.1f", 
-            _type.level1, _type.level2, _type.level3, _type.level4, myData.Name,
-            cam_pos.x.x, cam_pos.y.x, cam_pos.z.x, cam_pos.p.x, cam_pos.p.y, cam_pos.p.z,
-            pos.x, pos.y, pos.z))
+        -- log.write("EasyControl.EXPORT", log.INFO, string.format(
+        --     "type %d %d %d %d name %s cam Rxx=%.3f,Ryx=%.5f,Rzx=%.5f,p %.1f %.1f %.1f aircraft %.1f %.1f %.1f", 
+        --     _type.level1, _type.level2, _type.level3, _type.level4, myData.Name,
+        --     cam_pos.x.x, cam_pos.y.x, cam_pos.z.x, cam_pos.p.x, cam_pos.p.y, cam_pos.p.z,
+        --     pos.x, pos.y, pos.z))
+        data = connectSocRecv:receive()
+        if data then
+            log.write("EasyControl.EXPORT Recv", log.INFO, data)
+        end
         
         local _datalog = string.format(
             "name=%s altBar=%.3f x=%.5f y=%.5f z=%.5f pitch=%.5f roll=%.5f yaw=%.5f yawrate=%.5f pitchrate=%.5f rollrate=%.5f tas=%.3f aoa=%.5f\n", 

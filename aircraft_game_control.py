@@ -1,54 +1,13 @@
-import pyvjoy
 import math
 import time
 import socket
-import struct
 import math
 import select
 from transformations import *
 from configs import *
-
-THR_RATE = 0.7
-UDP_IP = "127.0.0.1"
-UDP_PORT = 4242
-
-
+from utils import *
 import socket
 import re
-import numpy as np
-
-DCS_UDP_IP = "127.0.0.1"
-DCS_UDP_PORT = 27015
-DEFAULT_FOV = 67.4/57.3
-VIEW_OFFSET = 0
-MAX_BANK = 80/57.3
-
-def float_constrain(v, min, max):
-    if v < min:
-        v = min
-    if v > max:
-        v = max
-    return v
-
-def toHexCmd(cmd):
-    #convert -1 to 1 to 0 to 32768
-    cmd = math.floor(32768 * (cmd +1) /2)
-    if cmd < 0:
-        return 0
-    if cmd > 32768:
-        return 32768
-    return cmd
-
-def wrap_pi(v):
-    return (v + np.pi) % (2 * np.pi) - np.pi
-
-def pose_to_udp_msg(eul, T):
-    return struct.pack("<dddddd", T[0], T[1], T[2], eul[0], eul[1], eul[2])
-
-def JoyEXP(v,exp):
-    if math.fabs(v) < 0.001:
-        return 0
-    return math.pow(math.fabs(v),exp)* v / math.fabs(v)
 
 class GameTracker:
     def __init__(self, ip="127.0.0.1", port=4242):
@@ -66,6 +25,7 @@ class GameTracker:
 
 class VJoyManager(object):
     def __init__(self):
+        import pyvjoy
         self.j = pyvjoy.VJoyDevice(1)
     
     def set_joystick_x(self, value):
@@ -94,8 +54,50 @@ class DCSTelem():
         self.dcs_sock.bind((DCS_UDP_IP, DCS_UDP_PORT))
         self.dcs_sock.setblocking(0)
 
+        self.dcs_sock_send = socket.socket(socket.AF_INET, # Internet
+                     socket.SOCK_DGRAM) # UDP
+
         self.OK = False
         self.updated = False
+
+        self.R_cam = np.eye(3, 3)
+        self.T_cam = np.eye(3, 3)
+
+        self.ail = 0
+        self.ele = 0
+        self.rud = 0
+        self.thr = 0
+
+    def send_dcs(self, data):
+        self.dcs_sock_send.sendto(data.encode(), (DCS_UDP_IP, DCS_UDP_SEND_PORT))
+
+    def send_dcs_command(self):
+        #0-9 camera R, R01 R02.. R22
+        #9-12 camera T
+        #12-16 ail ele rud thr
+        _s = ""
+        for i in range(3):
+            for j in range(3):
+                _s += f"{self.R_cam[i, j]:3.4f},"
+        for i in range(3):
+            _s += f"{self.T_cam[i] :3.4f},"
+        
+        _s += f"{self.ail:3.4f},"
+        _s += f"{self.ele:3.4f},"
+        _s += f"{self.rud:3.4f},"
+        _s += f"{self.thr:3.4f}\n"
+
+        self.send_dcs(_s)
+
+    def set_camera_pose(self, q, T):
+        self.R_cam = quaternion_matrix(q)
+        self.T_cam = T
+
+    def set_control(self, ail, ele, rud, thr):
+        self.ail = ail
+        self.ele = ele
+        self.rud = rud
+        self.thr = thr
 
     def update(self):
         ready = select.select([self.dcs_sock], [], [], 0.002)
@@ -123,7 +125,8 @@ class DCSTelem():
 
 class game_aircraft_control():
     def __init__(self, win_w, win_h):
-        self.vjoyman = VJoyManager()
+        if USE_VJOY:
+            self.vjoyman = VJoyManager()
         self.tracker = GameTracker()
         self.telem = DCSTelem()
         
@@ -324,17 +327,30 @@ class game_aircraft_control():
         euler = euler_from_quaternion(q_rel)
         self.tracker.send_pose([euler[2]*57.3, euler[1]*57.3, 0], [0, 0, 0])
 
+    def cameraPose(self):
+        T_cam =  np.array([self.telem.x, self.telem.y, self.telem.z])
+        mat = quaternion_matrix(quaternion_inverse(self.q_view_abs))[0:3,0:3]
+        T_cam += np.dot(mat, [CAMERA_X, 0, CAMERA_Z])
+
+        return self.q_view_abs, T_cam
+
     def update(self):
         self.controller_update()
-        ail = self.user_ail if self.user_ail else self.ail
-        ele = self.user_ele if self.user_ele else self.ele
-        rud = self.user_rud if self.user_rud else self.rud
+        ail = float_constrain(self.user_ail if self.user_ail else self.ail, -1, 1)
+        ele = float_constrain(self.user_ele if self.user_ele else self.ele, -1, 1)
+        rud = float_constrain(self.user_rud if self.user_rud else self.rud, -1, 1)
+        
+        if USE_VJOY:
+            self.vjoyman.set_joystick_x(ail)
+            self.vjoyman.set_joystick_y(ele)
+            self.vjoyman.set_joystick_rz(rud)
+            self.vjoyman.set_joystick_z(-self.thr)
 
-        self.vjoyman.set_joystick_x(ail)
-        self.vjoyman.set_joystick_y(ele)
-        self.vjoyman.set_joystick_rz(rud)
-        self.vjoyman.set_joystick_z(-self.thr)
-        self.set_camera_view()
+        q_cam, T_cam = self.cameraPose()
+        self.telem.set_camera_pose(q_cam, T_cam)
+        self.telem.set_control(ail, ele, rud, self.thr)
+        # self.set_camera_view()
+        self.telem.send_dcs_command()
 
 if __name__ == '__main__':
     aircraft_con = game_aircraft_control()

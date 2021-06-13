@@ -1,3 +1,18 @@
+THR_RATE = 0.7
+UDP_IP = "127.0.0.1"
+UDP_PORT = 4242
+
+DCS_UDP_IP = "127.0.0.1"
+DCS_UDP_PORT = 27015
+DCS_UDP_SEND_PORT = 27016
+
+DEFAULT_FOV = 67.4/57.3
+VIEW_OFFSET = 0
+MAX_BANK = 80/57.3
+
+CAMERA_X = 10
+CAMERA_Z = 5
+
 screen_scale = 2000
 ailrate = 1.5
 elerate = 2.0
@@ -41,3 +56,6 @@ keyboard_rud_max = "e"
 keyboard_rud_min = "q"
 
 keyboard_exit = "shift+esc"
+
+# Do not modify below unless you understand
+USE_VJOY = False
