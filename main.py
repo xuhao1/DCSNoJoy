@@ -82,6 +82,12 @@ class MainWindow(QtWidgets.QMainWindow):
         self.thr.setFixedSize(400, 50)
         self.setGeometry(DCS_X, DCS_Y, DCS_W, DCS_H)
 
+
+        self.aim_tgt = QLabel('+', self)
+        self.aim_tgt.move(0, 0)
+        self.aim_tgt.setFont(QFont('SansSerif', 30))
+        self.aim_tgt.setFixedSize(30, 30)
+
         self.load_image_label()
 
         self.mouse_x0 = None
@@ -104,10 +110,6 @@ class MainWindow(QtWidgets.QMainWindow):
 
         self.count = 0
     
-    def move_aim_tgt(self, x, y):
-        #For window mode
-        self.aim_tgt.move(int(x - 50 + DCS_W/2),int(y + DCS_H/2 - 125))
-        # self.aim_tgt.move(-50, 0)
 
     def load_image_label(self):
         # input_image = cv2.imread("./assets/circle_small.png", cv2.IMREAD_UNCHANGED)
@@ -118,14 +120,14 @@ class MainWindow(QtWidgets.QMainWindow):
 
         pixmap_image = QtGui.QPixmap("./assets/circle_small.png")
 
-        self.aim_tgt = QLabel("aim_tgt", self)
-        self.aim_tgt.setStyleSheet("background:transparent;")
-        self.aim_tgt.setPixmap(pixmap_image)
-        self.aim_tgt.setAlignment(QtCore.Qt.AlignCenter)
-        self.aim_tgt.setScaledContents(True)
-        self.aim_tgt.setMinimumSize(1,1)
-        self.aim_tgt.setFixedSize(100, 100)
-        self.aim_tgt.move(DCS_CX, DCS_CY)
+        self.virtual_mouse = QLabel("virtual_mouse", self)
+        self.virtual_mouse.setStyleSheet("background:transparent;")
+        self.virtual_mouse.setPixmap(pixmap_image)
+        self.virtual_mouse.setAlignment(QtCore.Qt.AlignCenter)
+        self.virtual_mouse.setScaledContents(True)
+        self.virtual_mouse.setMinimumSize(1,1)
+        self.virtual_mouse.setFixedSize(100, 100)
+        self.virtual_mouse.move(DCS_CX, DCS_CY)
 
     def set_mouse_cur_pos_new(self, m, dt):
         x = m[0]
@@ -149,14 +151,22 @@ class MainWindow(QtWidgets.QMainWindow):
             self.status.setText(f"MouseAim {self.aircraft_con.status()}")
 
         mouse.move(self.windows_center_x0, self.windows_center_y0)
-        self.move_aim_tgt(self.vmouse_x, self.vmouse_y)
+        self.move_virtual_mouse(self.vmouse_x, self.vmouse_y)
+        self.move_aim_tgt(self.aim_tgt_x, self.aim_tgt_y)
 
 
+    def move_virtual_mouse(self, x, y):
+        #For window mode
+        self.virtual_mouse.move(int(x - 50 + DCS_W/2),int(y + DCS_H/2 - 125))
+
+    def move_aim_tgt(self, x, y):
+        #For window mode
+        self.aim_tgt.move(int(x - 15 + DCS_W/2),int(y + DCS_H/2 - 90))
 
     def timerEvent(self, e):
         _m = mouse.get_position()
         self.mouse = _m
-        self.vmouse_x, self.vmouse_y = self.aircraft_con.pre_update()
+        self.vmouse_x, self.vmouse_y, self.aim_tgt_x, self.aim_tgt_y = self.aircraft_con.pre_update()
 
         top_win = win32gui.GetWindowText(win32gui.GetForegroundWindow())
         if top_win != DCS_WIN_NAME and top_win != WIN_NAME or not self.aircraft_con.OK or not self.aircraft_con.updated:

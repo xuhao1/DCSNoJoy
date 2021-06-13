@@ -156,6 +156,8 @@ class game_aircraft_control():
 
         self.is_free_look = False
 
+        self.last_free_look = False
+
         print(f"Camera cx {self.cx} cy{self.cy} fx {self.fx} fy {self.fy}")
 
     def get_ail(self):
@@ -201,6 +203,16 @@ class game_aircraft_control():
             return v[1]*self.fx, v[2]*self.fy
         else:
             return 0, 0
+    
+    def move_aim_tgt(self):
+        if self.pitch_sp is not None:
+            rel_tgt = quaternion_multiply(quaternion_inverse(self.q_view_abs), self.q_att)
+            mat = quaternion_matrix(rel_tgt)[0:3,0:3]
+            v = np.dot(mat, [1, 0, 0])
+            v = v / v[0]
+            return v[1]*self.fx, v[2]*self.fy
+        else:
+            return 0, 0
 
     def control_body_aim(self, q_tgt):
         #need to update to quaternion
@@ -214,6 +226,7 @@ class game_aircraft_control():
         #We may also consider use g instead
         self.yawrate_w_sp = dyaw * p_yaw
         self.yawrate_b_sp = self.yawrate_w_sp*math.cos(self.telem.data['pitch'])*math.cos(self.telem.data['roll'])
+        
         self.pitchrate_b_sp = self.yawrate_w_sp*math.cos(self.telem.data['pitch'])*math.sin(self.telem.data['roll'])
         self.roll_sp = float_constrain(self.yawrate_w_sp*p_yawrate_w_to_roll, -MAX_BANK, MAX_BANK)
 
@@ -247,13 +260,15 @@ class game_aircraft_control():
         self.view_yaw += _x/ screen_scale*57.3*view_rate
         self.view_pitch += -_y/ screen_scale*57.3*view_rate
         self.q_view_abs = quaternion_from_euler(0, self.view_pitch, self.view_yaw)
+        self.last_free_look = True
     
     def set_mouse_free_look_off(self):
         self.is_free_look = False
-        if self.q_view_abs is None:
+        if self.q_view_abs is None or self.last_free_look:
             self.view_yaw = self.telem.data["yaw"]
             self.view_pitch = self.telem.data["pitch"]
             self.q_view_abs = quaternion_from_euler(0, self.view_pitch, self.view_yaw)
+            self.last_free_look = False
 
     def inc_thr(self, dt):
         self.thr += dt*THR_RATE
@@ -271,8 +286,10 @@ class game_aircraft_control():
         self.updated = self.telem.updated
         if self.OK and self.updated:
             self.q_att = quaternion_from_euler(self.telem.data["roll"], self.telem.data["pitch"], self.telem.data["yaw"])
-            return self.move_aim_mouse()
-        return 0, 0
+            _1, _2 = self.move_aim_mouse()
+            _3, _4 = self.move_aim_tgt()
+            return _1, _2, _3, _4
+        return 0, 0, 0, 0
 
     def set_camera_view(self):
         q_rel = quaternion_multiply(quaternion_inverse(self.q_att), self.q_view_abs)
