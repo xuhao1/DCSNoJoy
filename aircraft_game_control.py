@@ -163,12 +163,13 @@ class game_aircraft_control():
 
         #We may also consider use g instead
         self.yawrate_w_sp = dyaw * p_yaw
-        self.yawrate_b_sp = self.yawrate_w_sp*math.cos(self.telem.pitch)*math.cos(self.telem.roll)
-        
-        self.pitchrate_b_sp = self.yawrate_w_sp*math.cos(self.telem.pitch)*math.sin(self.telem.roll)
         self.roll_sp = float_constrain(self.yawrate_w_sp*p_yawrate_w_to_roll, -MAX_BANK, MAX_BANK)
-
         self.q_att_sp = quaternion_from_euler(self.roll_sp, self.pitch_sp, self.yaw_sp)
+
+        dw = att_err_to_tangent_space(self.q_att_sp, self.q_att)
+
+        return dw
+
 
     def status(self):
         if self.telem.OK:
@@ -183,9 +184,9 @@ class game_aircraft_control():
     def controller_update(self):
         if self.telem.OK:
             if control_style == "warthunder":
-                self.control_body_aim(self.q_att_tgt)
-                self.ail = (self.roll_sp - self.telem.data["roll"])*p_roll + p_rollrate*(self.rollrate_b_sp-self.telem.data["rollrate"])
-                self.ele = (self.pitch_sp - self.telem.data["pitch"])*p_pitch + p_pitchrate*(self.pitchrate_b_sp-self.telem.data["pitchrate"])
+                dw = self.control_body_aim(self.q_att_tgt)
+                self.ail = (dw[0])*p_roll + p_rollrate*(self.rollrate_b_sp-self.telem.data["rollrate"])
+                self.ele = (dw[1])*p_pitch + p_pitchrate*(self.pitchrate_b_sp-self.telem.data["pitchrate"])
                 self.rud = p_yawrate*(self.yawrate_b_sp-self.telem.data["pitchrate"])
 
         self.telem.updated = False

@@ -23,11 +23,11 @@ att_sp_rate = 0.5
 control_style = "warthunder" 
 
 
-#For F16
+#For F18
 p_roll = 2.0
 p_pitch = 4.0
 p_rollrate = 1.0
-p_pitchrate = 1.0
+p_pitchrate = 0.0
 p_yawrate = 0
 
 p_yawrate_w_to_roll = 3.0
