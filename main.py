@@ -148,7 +148,6 @@ class MainWindow(QtWidgets.QMainWindow):
             self.aircraft_con.set_mouse_aircraft_control(dmouse_x, dmouse_y)
             self.status.setText(f"MouseAim {self.aircraft_con.status()}")
 
-
         mouse.move(self.windows_center_x0, self.windows_center_y0)
         self.move_aim_tgt(self.vmouse_x, self.vmouse_y)
 
@@ -169,8 +168,7 @@ class MainWindow(QtWidgets.QMainWindow):
             self.rud.setText("RUD: {:.1f}%".format(self.aircraft_con.get_rud()*100))
             self.thr.setText("THR: {:.1f}%".format(self.aircraft_con.get_thr()*100))
             
-        if self.count % 2 == 0:
-            self.set_mouse_cur_pos_new(_m, 0.01)
+        self.set_mouse_cur_pos_new(_m, 0.01)
 
         self.keyboard_watcher()
 
@@ -181,7 +179,6 @@ class MainWindow(QtWidgets.QMainWindow):
         if keyboard.is_pressed("c"):
             self.is_free_look = True
         else:
-            self.aircraft_con.set_mouse_free_look(0, 0)
             self.is_free_look = False
 
         if keyboard.is_pressed("alt+r"):
