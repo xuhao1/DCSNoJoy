@@ -6,7 +6,7 @@ DCS_UDP_IP = "127.0.0.1"
 DCS_UDP_PORT = 27015
 DCS_UDP_SEND_PORT = 27016
 
-DEFAULT_FOV = 67.4/57.3
+DEFAULT_FOV = 85/57.3
 VIEW_OFFSET = 0
 MAX_BANK = 80/57.3
 
@@ -17,8 +17,10 @@ screen_scale = 2000
 ailrate = 1.5
 elerate = 2.0
 
-view_rate = 0.02
+#Rate of free view and mouse aim
+view_rate = 1.0
 att_sp_rate = 0.5
+
 # control_style = "battlefield" 
 control_style = "warthunder" 
 

@@ -195,9 +195,13 @@ class game_aircraft_control():
 
     def set_mouse_free_look(self, _x, _y):
         self.is_free_look = True
-        self.view_yaw += _x/ screen_scale*57.3*view_rate
-        self.view_pitch += -_y/ screen_scale*57.3*view_rate
-        self.q_view_abs = quaternion_from_euler(0, self.view_pitch, self.view_yaw)
+        ox = 0
+        oy = -_y/self.fx*view_rate
+        oz =  _x/self.fy*view_rate
+        self.q_view_abs += 0.5*quaternion_multiply(self.q_view_abs, [0, ox, oy, oz])
+        self.q_view_abs = unit_vector(self.q_view_abs)
+        _, self.view_pitch, self.view_yaw = euler_from_quaternion(self.q_view_abs)
+
         self.last_free_look = True
     
     def set_mouse_free_look_off(self):
@@ -247,10 +251,7 @@ class game_aircraft_control():
         if not self.is_free_look:
             self.q_view_abs = quaternion_slerp(self.q_view_abs, self.q_att_tgt, view_filter_rate)
         
-        q_cam_real = self.telem.q_cam
-        dq = quaternion_multiply(quaternion_inverse(q_cam_real), self.q_view_abs)
-        
-        q_rel = quaternion_multiply(quaternion_inverse(self.q_att), self.q_view_abs)
+        q_rel = quaternion_multiply(quaternion_from_euler(0, -self.telem.pitch, -self.telem.yaw), self.q_view_abs)
         euler = euler_from_quaternion(q_rel)
 
         mat = quaternion_matrix(quaternion_inverse(self.q_view_abs))[0:3,0:3]
