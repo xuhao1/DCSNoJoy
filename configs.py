@@ -68,4 +68,4 @@ HIDE_WIHTOUT_DCS = False
 #Only works in external view
 ACTIVE_CTRL_VIEW = True
 
-ACTIVE_CTRL_F3 = True
+ACTIVE_CTRL_F3 = False
