@@ -20,7 +20,8 @@ class DCSTelem():
         self.updated = False
 
         self.R_cam = np.eye(3, 3)
-        self.T_cam = np.eye(3)
+        self.q_cam = np.array([1, 0, 0, 0])
+        self.T_cam = np.array([0, 0, 0])
 
         self.ail = 0
         self.ele = 0
@@ -34,18 +35,31 @@ class DCSTelem():
         #0-9 camera R, R01 R02.. R22
         #9-12 camera T
         #12-16 ail ele rud thr
-        _s = ""
-        _s += f"{self.time:3.4f},"
+        _s = f"{self.time:3.4f},"
         _s += f"{self.ail:3.4f},"
         _s += f"{self.ele:3.4f},"
         _s += f"{self.rud:3.4f},"
-        _s += f"{self.thr:3.4f}\n"
+        _s += f"{self.thr:3.4f},"
 
+        _s += f"{self.T_cam[0]:3.4f},"
+        _s += f"{self.T_cam[1]:3.4f},"
+        _s += f"{self.T_cam[2]:3.4f},"
+
+        for i in range(3):
+            for j in range(3):
+                _s += f"{self.R_cam[i, j]:3.4f},"
+        _s += "\n"
+        print(_s)
         self.send_dcs(_s)
 
-    def set_camera_pose(self, q, T):
-        self.R_cam = quaternion_matrix(q)
-        self.T_cam = T
+    def set_camera_pose(self, view_yaw, view_pitch, T):
+        # self.R_cam = quaternion_matrix(q)
+        self.R_cam = euler_matrix(0, view_yaw, -view_pitch)
+        Rcam = self.R_cam[0:3, 0:3]
+        self.T_cam[0] = T[0]
+        self.T_cam[1] = -T[2]
+        self.T_cam[2] = T[1]
+
         print("cam Pose", self.T_cam)
 
     def set_control(self, ail, ele, rud, thr):
@@ -64,18 +78,7 @@ class DCSTelem():
             for k in self.data:
                 setattr(self, k, self.data[k])
 
-            self.R_cam = np.array([
-                [self.Rcamxx, self.Rcamxy, self.Rcamxz, 0],
-                [self.Rcamyx, self.Rcamyy, self.Rcamyz, 0],
-                [self.Rcamzx, self.Rcamzy, self.Rcamzz, 0],
-                [0, 0, 0, 1]
-            ])
             # convert origin Rcam to euler will give roll yaw pitch, so we need to switch z y axis
-            R_cam = self.R_cam
-            q_cam = quaternion_from_matrix(R_cam)
-            r, p, y = euler_from_quaternion(q_cam, "sxyz")
-            # print("Rcam0 ypr", y*57.3, p*57.3, r*57.3)
-            self.q_cam = q_cam
             
             if not self.OK:
                 self.OK = True

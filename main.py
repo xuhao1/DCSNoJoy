@@ -148,6 +148,8 @@ class MainWindow(QtWidgets.QMainWindow):
         self.aim_tgt.move(int(x - 15 + DCS_W/2),int(y + DCS_H/2 - 15))
 
     def timerEvent(self, e):
+        self.keyboard_watcher_sys()
+
         _m = mouse.get_position()
         self.mouse = _m
         self.vmouse_x, self.vmouse_y, self.aim_tgt_x, self.aim_tgt_y = self.aircraft_con.pre_update()
@@ -155,12 +157,18 @@ class MainWindow(QtWidgets.QMainWindow):
         top_win = win32gui.GetWindowText(win32gui.GetForegroundWindow())
         if top_win != DCS_WIN_NAME and top_win != WIN_NAME or not self.aircraft_con.OK or not self.aircraft_con.updated:
             return
+
         if self.count % 3 == 0:
             self.set_mouse_cur_pos_new(_m, MAIN_WIN_DURATION*3/1000.0)
 
         self.keyboard_watcher()
         self.aircraft_con.update()
         self.count += 1
+
+    def keyboard_watcher_sys(self):
+        if keyboard.is_pressed(keyboard_exit):
+            print("User require exit")
+            sys.exit(0)
 
     def keyboard_watcher(self):
         if keyboard.is_pressed(keyboard_freelook):
@@ -174,9 +182,6 @@ class MainWindow(QtWidgets.QMainWindow):
         if keyboard.is_pressed(keyboard_dec_thr):
             self.aircraft_con.dec_thr(0.01)
         
-        if keyboard.is_pressed(keyboard_exit):
-            sys.exit(0)
-
         if keyboard.is_pressed(keyboard_ele_min):
             self.aircraft_con.set_user_ele(-1)
 

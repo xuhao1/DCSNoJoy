@@ -10,8 +10,8 @@ DEFAULT_FOV = 85/57.3
 VIEW_OFFSET = 0
 MAX_BANK = 80/57.3
 
-CAMERA_X = 100
-CAMERA_Z = 0
+CAMERA_X = 30
+CAMERA_Z = 5
 
 screen_scale = 2000
 ailrate = 1.5
@@ -39,7 +39,7 @@ p_yaw = 3.0
 
 view_filter_rate = 0.005
 
-CAM_PITCH_OFFSET = 8/57.3
+CAM_PITCH_OFFSET = -8/57.3
 
 
 #Keyboard shortcuts
@@ -61,4 +61,5 @@ keyboard_exit = "shift+esc"
 
 # Do not modify below unless you understand
 USE_VJOY = False
+USE_OPENTRACK = False
 MAIN_WIN_DURATION = 5

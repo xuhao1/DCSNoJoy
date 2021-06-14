@@ -75,7 +75,7 @@ class game_aircraft_control():
 
         self.q_att = np.array([1, 0, 0, 0], dtype=float)
 
-        self.q_cam_pitch = quaternion_from_euler(0, CAM_PITCH_OFFSET, 0)
+        self.q_cam_pitch_offset = quaternion_from_euler(0, CAM_PITCH_OFFSET, 0)
 
         self.yaw_sp = None
         self.pitch_sp = None
@@ -136,7 +136,8 @@ class game_aircraft_control():
     def move_aim_mouse(self):
         if self.pitch_sp is not None:
             rel_tgt = quaternion_multiply(quaternion_inverse(self.q_view_abs), self.q_att_tgt)
-            rel_tgt = quaternion_multiply(rel_tgt, self.q_cam_pitch)
+            if USE_OPENTRACK:
+                rel_tgt = quaternion_multiply(rel_tgt, self.q_cam_pitch_offset)
             mat = quaternion_matrix(rel_tgt)[0:3,0:3]
             v = np.dot(mat, [1, 0, 0])
             v = v / v[0]
@@ -147,7 +148,8 @@ class game_aircraft_control():
     def move_aim_tgt(self):
         if self.pitch_sp is not None:
             rel_tgt = quaternion_multiply(quaternion_inverse(self.q_view_abs), self.q_att)
-            rel_tgt = quaternion_multiply(rel_tgt, self.q_cam_pitch)
+            if USE_OPENTRACK:
+                rel_tgt = quaternion_multiply(rel_tgt, self.q_cam_pitch_offset)
             mat = quaternion_matrix(rel_tgt)[0:3,0:3]
             v = np.dot(mat, [1, 0, 0])
             v = v / v[0]
@@ -180,6 +182,7 @@ class game_aircraft_control():
             _s += f"roll: sp {self.roll_sp*57.3:3.1f} raw {self.telem.roll*57.3:3.1f} rate {self.telem.data['rollrate']*57.3:3.1f}\n"
             # _s += f"x {self.telem.x:5.1f} y {self.telem.y:3.1f} z {self.telem.z:3.1f}\n"
             _s += f"thr {self.thr*100:5.1f}%"
+            print(_s)
             return _s
         return "Wait for connection"
 
@@ -193,6 +196,10 @@ class game_aircraft_control():
 
         self.telem.updated = False
 
+    def q_default_view(self):
+        q_view_sp = quaternion_multiply(self.q_cam_pitch_offset, self.q_att_sp)
+        return q_view_sp
+
     def set_mouse_free_look(self, _x, _y):
         self.is_free_look = True
         ox = 0
@@ -200,16 +207,13 @@ class game_aircraft_control():
         oz =  _x/self.fy*view_rate
         self.q_view_abs += 0.5*quaternion_multiply(self.q_view_abs, [0, ox, oy, oz])
         self.q_view_abs = unit_vector(self.q_view_abs)
-        _, self.view_pitch, self.view_yaw = euler_from_quaternion(self.q_view_abs)
 
         self.last_free_look = True
     
     def set_mouse_free_look_off(self):
         self.is_free_look = False
         if self.q_view_abs is None or self.last_free_look:
-            self.view_yaw = self.telem.data["yaw"]
-            self.view_pitch = self.telem.data["pitch"]
-            self.q_view_abs = quaternion_from_euler(0, self.view_pitch, self.view_yaw)
+            self.q_view_abs = self.q_default_view()
             self.last_free_look = False
 
     def set_user_ele(self, ele):
@@ -249,21 +253,28 @@ class game_aircraft_control():
 
     def set_camera_view(self):
         if not self.is_free_look:
-            self.q_view_abs = quaternion_slerp(self.q_view_abs, self.q_att_tgt, view_filter_rate)
-        
-        q_rel = quaternion_multiply(quaternion_from_euler(0, -self.telem.pitch, -self.telem.yaw), self.q_view_abs)
-        euler = euler_from_quaternion(q_rel)
+            q_view_sp = self.q_default_view()
+            self.q_view_abs = quaternion_slerp(self.q_view_abs, q_view_sp, view_filter_rate)
+        _, self.view_pitch, self.view_yaw = euler_from_quaternion(self.q_view_abs)
 
-        mat = quaternion_matrix(quaternion_inverse(self.q_view_abs))[0:3,0:3]
-        T_cam = np.dot(mat, [CAMERA_X, 0, CAMERA_Z])*100
-        
-        self.tracker.send_pose([euler[2]*57.3, euler[1]*57.3, 0], [0, 0, 0])
+        if USE_OPENTRACK:
+            q_rel = quaternion_multiply(quaternion_from_euler(0, -self.telem.pitch, -self.telem.yaw), self.q_view_abs)
+            euler = euler_from_quaternion(q_rel)
+
+            mat = quaternion_matrix(quaternion_inverse(self.q_view_abs))[0:3,0:3]
+            T_cam = np.dot(mat, [CAMERA_X, 0, CAMERA_Z])*100
+            
+            self.tracker.send_pose([euler[2]*57.3, euler[1]*57.3, 0], [0, 0, 0])
+        else:
+            q_cam, T_cam = self.cameraPose()
+            self.telem.set_camera_pose(self.view_yaw, self.view_pitch, T_cam)
 
     def cameraPose(self):
-        T_cam =  np.array([self.telem.x, self.telem.y, self.telem.z])
-        mat = quaternion_matrix(quaternion_inverse(self.q_view_abs))[0:3,0:3]
-        T_cam += np.dot(mat, [CAMERA_X, 0, CAMERA_Z])
-
+        # T is relative to our aircraft
+        # mat = quaternion_matrix(quaternion_inverse(self.q_view_abs))[0:3,0:3]
+        mat = quaternion_matrix(self.q_view_abs)[0:3,0:3]
+        T_cam = mat @ [-CAMERA_X, 0, -CAMERA_Z]
+        print("Tcam", T_cam)
         return self.q_view_abs, T_cam
 
     def update(self):
@@ -276,13 +287,12 @@ class game_aircraft_control():
             self.vjoyman.set_joystick_x(ail)
             self.vjoyman.set_joystick_y(ele)
             self.vjoyman.set_joystick_rz(rud)
-            self.vjoyman.set_joystick_z(-self.thr)
+            self.vjoyman.set_joystick_z(-(self.thr * 2 -1))
             self.set_camera_view()
         else:
             self.set_camera_view()
-            # q_cam, T_cam = self.cameraPose()
-            # self.telem.set_camera_pose(q_cam, T_cam)
-            self.telem.set_control(ail, ele, rud, self.thr)
+
+            self.telem.set_control(ail, ele, rud,(self.thr * 2 -1))
             self.telem.send_dcs_command()
 
 if __name__ == '__main__':
