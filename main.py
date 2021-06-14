@@ -65,7 +65,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.status = QLabel('Wait for DCS Connection', self)
         self.status.move(30, 80)
         self.status.setFont(QFont('Consolas', 15))
-        self.status.setFixedSize(1000, 200)
+        self.status.setFixedSize(DCS_W, 500)
         self.status.setStyleSheet('color: yellow')
 
 
@@ -160,10 +160,19 @@ class MainWindow(QtWidgets.QMainWindow):
         self.vmouse_x, self.vmouse_y, self.aim_tgt_x, self.aim_tgt_y = self.aircraft_con.pre_update()
 
         top_win = win32gui.GetWindowText(win32gui.GetForegroundWindow())
-        if not self.aircraft_con.OK:
-            self.status.setText(f"Wait for DCS Connection")
-            self.status.setStyleSheet('color: yellow')
-        if top_win != DCS_WIN_NAME and top_win != WIN_NAME or not self.aircraft_con.OK or not self.aircraft_con.updated:
+        
+        # if not self.aircraft_con.OK:
+        #     self.status.setText(f"Wait for DCS Connection")
+        #     self.status.setStyleSheet('color: yellow')
+
+        if HIDE_WIHTOUT_DCS:
+            if top_win != DCS_WIN_NAME and top_win != WIN_NAME:
+                self.setVisible(False)
+            else:
+                self.setVisible(True)
+            return
+
+        if not self.aircraft_con.OK or not self.aircraft_con.updated:
             return
 
         if self.count % 3 == 0:

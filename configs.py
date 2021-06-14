@@ -23,18 +23,18 @@ att_sp_rate = 0.5
 # control_style = "battlefield" 
 control_style = "warthunder" 
 
-
 #For F18
 p_roll = 2.0
 p_pitch = 4.0
+p_yaw = 1.0 # careful about the sideslip!
+
 p_rollrate = 1.0
 p_pitchrate = 0.6
-p_yawrate = 0
+p_yawrate = 1.0
 
-p_yawrate_w_to_roll = 3.0
+p_yaw_w_to_roll = 3.0
 
 #p yaw to roll
-p_yaw = 3.0
 
 view_filter_rate = 0.005
 
@@ -63,3 +63,4 @@ USE_VJOY = False
 USE_OPENTRACK = False
 MAIN_WIN_DURATION = 5
 DCS_TIMEOUT = 0.1
+HIDE_WIHTOUT_DCS = False

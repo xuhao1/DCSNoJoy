@@ -11,7 +11,6 @@ class game_aircraft_control():
     def __init__(self, win_w, win_h):
         self.telem = DCSTelem()
         
-        
         #View camera parameter
         self.cx = win_w /2
         self.cy = win_h /2
@@ -61,6 +60,9 @@ class game_aircraft_control():
         self.pitchrate_b_sp = 0
         self.rollrate_b_sp = 0
 
+        self.dw_tgt = np.array([0, 0, 0], dtype=float) # attitude now to tgt
+        self.dw_sp = np.array([0, 0, 0], dtype=float) # attitude now to sp
+
 
         if self.OK and self.yaw_sp == None:
             print("Reset aircraft attitude setpoint")
@@ -89,10 +91,9 @@ class game_aircraft_control():
         y_sp =  _y / self.fx 
         
         if control_style == "battlefield":
-            self.ail = x_sp*ailrate
-            self.ele = -y_sp*elerate
+            self.ail += x_sp*ailrate
+            self.ele += -y_sp*elerate
         elif control_style == "warthunder" and self.OK and self.updated:
-
             self.dir_tgt += quaternion_rotate(self.q_view_abs, np.array([0, x_sp, y_sp], dtype=float))
             self.dir_tgt = unit_vector(self.dir_tgt)
             self.q_att_tgt = dir_to_q(self.dir_tgt)
@@ -116,45 +117,46 @@ class game_aircraft_control():
         else:
             return 0, 0
 
-
-    def control_body_aim(self, q_tgt):
-        #need to update to quaternion
-        dw = att_err_to_tangent_space(self.q_att_tgt, self.q_att)
-        dyaw = dw[2]
-
-        #We may also consider use g instead
-        self.yawrate_w_sp = dyaw * p_yaw
-        self.roll_sp = float_constrain(self.yawrate_w_sp*p_yawrate_w_to_roll, -MAX_BANK, MAX_BANK)
-        self.q_att_sp = quaternion_from_euler(self.roll_sp, self.pitch_sp, self.yaw_sp)
-
-        dw = att_err_to_tangent_space(self.q_att_sp, self.q_att)
-
-        return dw
-
-
     def status(self):
         # yaw_sp, pitch_sp, roll_sp = euler_from_quaternion(self.q_att_tgt, "rzyx")
         yaw_sp, pitch_sp, roll_sp = self.yaw_sp, self.pitch_sp, self.roll_sp
 
         if self.telem.OK:
-            _s =  f"t {self.telem.time:3.1f} {self.telem.name}\n"
-            _s += f"TAS: {self.telem.tas*3.6:3.1f}km/h AoA {self.telem.aoa:3.1f}\n"
-            _s += f"yaw: sp {yaw_sp*57.3:3.1f} raw {self.telem.yaw*57.3:3.1f} rate_w_sp {self.yawrate_w_sp*57.3:3.1f} rate {self.telem.data['yawrate']*57.3:3.1f}\n"
-            _s += f"pitch sp: {pitch_sp*57.3:3.1f} pitch {self.telem.pitch*57.3:3.1f} rate_b_sp {self.pitchrate_b_sp*57.3:3.1f} rate {self.telem.data['pitchrate']*57.3:3.1f}\n"
-            _s += f"roll: sp {roll_sp*57.3:3.1f} raw {self.telem.roll*57.3:3.1f} rate {self.telem.data['rollrate']*57.3:3.1f}\n"
+            _s =  f"t\t{self.telem.time:3.1f}\t{self.telem.name}\n"
+            _s += f"TAS:\t{self.telem.tas*3.6:3.1f}km/h\tAoA:{self.telem.aoa:3.1f}\n"
+            _s += f"yaw: \tsp\t{yaw_sp*57.3:3.1f}\traw {self.telem.yaw*57.3:3.1f}\trate_w_sp {self.yawrate_w_sp*57.3:3.1f}\trate {self.telem.yawrate*57.3:3.1f}\trud {self.rud*100:3.1f}%\n"
+            _s += f"pitch \tsp\t{pitch_sp*57.3:3.1f}\traw {self.telem.pitch*57.3:3.1f}\trate_b_sp {self.pitchrate_b_sp*57.3:3.1f}\trate {self.telem.pitchrate*57.3:3.1f}\tele {self.ele*100:3.1f}%\n"
+            _s += f"roll: \tsp\t{roll_sp*57.3:3.1f}\traw {self.telem.roll*57.3:3.1f}\trate_b_sp {self.rollrate_b_sp*57.3:3.1f}\trate {self.telem.rollrate*57.3:3.1f}\tail {self.ail*100:3.1f}%\n"
+            _s += f"att2sp\t{self.dw_sp[0]*57.3:3.1f}\t{self.dw_sp[1]*57.3:3.1f}\t{self.dw_sp[2]*57.3:3.1f}\n"
+            _s += f"att2tgt\t{self.dw_tgt[0]*57.3:3.1f}\t{self.dw_tgt[1]*57.3:3.1f}\t{self.dw_tgt[2]*57.3:3.1f}\n"
             # _s += f"x {self.telem.x:5.1f} y {self.telem.y:3.1f} z {self.telem.z:3.1f}\n"
-            _s += f"thr {self.thr*100:5.1f}%\n"
+            _s += f"thr\t{self.thr*100:5.1f}%\n"
             print(_s)
             return _s
         return "Wait for connection"
+
+    def control_body_aim(self, q_tgt):
+        #need to update to quaternion
+        dw = att_err_to_tangent_space(q_tgt, self.q_att)
+        self.dw_tgt = dw
+        dyaw = dw[2]
+        #We may also consider use g instead
+        roll_sp = float_constrain(dyaw*p_yaw_w_to_roll, -MAX_BANK, MAX_BANK)
+        self.q_att_sp = quaternion_multiply(q_tgt, quaternion_from_euler(roll_sp, 0, 0))
+
+        self.roll_sp, self.pitch_sp, self.yaw_sp = euler_from_quaternion(self.q_att_sp)
+
+        dw = att_err_to_tangent_space(self.q_att_sp, self.q_att)
+        self.dw_sp = dw
+        return dw
 
     def controller_update(self):
         if self.telem.OK:
             if control_style == "warthunder":
                 dw = self.control_body_aim(self.q_att_tgt)
-                self.ail = (dw[0])*p_roll + p_rollrate*(self.rollrate_b_sp-self.telem.data["rollrate"])
-                self.ele = (dw[1])*p_pitch + p_pitchrate*(self.pitchrate_b_sp-self.telem.data["pitchrate"])
-                self.rud = p_yawrate*(self.yawrate_b_sp-self.telem.data["pitchrate"])
+                self.ail = (dw[0])*p_roll + p_rollrate*(self.rollrate_b_sp-self.telem.rollrate)
+                self.ele = (dw[1])*p_pitch + p_pitchrate*(self.pitchrate_b_sp-self.telem.pitchrate)
+                self.rud = (dw[2])*p_yaw + p_yawrate*(self.yawrate_b_sp-self.telem.yawrate)
 
         self.telem.updated = False
 
