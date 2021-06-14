@@ -72,7 +72,7 @@ class game_aircraft_control():
         self.q_att_sp = np.array([1, 0, 0, 0], dtype=float) # Control Setpoint now, contain roll
 
         self.q_att_tgt = np.array([1, 0, 0, 0], dtype=float) # Control target, no roll
-        self.dir_att = np.array([1, 0, 0])
+        self.dir_tgt = np.array([1, 0, 0], dtype=float)
 
         self.q_att = np.array([1, 0, 0, 0], dtype=float)
 
@@ -126,23 +126,15 @@ class game_aircraft_control():
                 self.roll_sp = self.telem.roll
                 self.q_att_tgt = quaternion_from_euler(0, self.pitch_sp, self.yaw_sp)
 
-            ox = 0
-            oy =  _y/self.fx*att_sp_rate
-            oz =  _x/self.fy*att_sp_rate
-            #First we need to rotate them by camera frame
-            dw = np.array([0, ox, oy, oz])
-            dw = quaternion_multiply(self.q_view_abs, dw)
-            self.q_att_tgt += 0.5*quaternion_multiply(dw, self.q_att_tgt)
-            self.q_att_tgt = setZeroRoll(self.q_att_tgt)
+            self.dir_tgt += quaternion_rotate(self.q_view_abs, np.array([0, x_sp, y_sp], dtype=float))
+            self.dir_tgt = unit_vector(self.dir_tgt)
+            self.q_att_tgt = dir_to_q(self.dir_tgt)
             self.roll_sp, self.pitch_sp, self.yaw_sp = euler_from_quaternion(self.q_att_tgt)
             # self.yaw_sp, self.pitch_sp, self.roll_sp = euler_from_quaternion(self.q_att_tgt, "szyx")
 
     def move_aim_mouse(self):
         if self.pitch_sp is not None:
-            rel_tgt = quaternion_multiply(quaternion_inverse(self.q_view_abs), self.q_att_tgt)
-            if USE_OPENTRACK:
-                rel_tgt = quaternion_multiply(rel_tgt, self.q_cam_pitch_offset)
-            v = quaternion_rotate(rel_tgt, np.array([1, 0, 0]))
+            v = quaternion_rotate(quaternion_inverse(self.q_view_abs), self.dir_tgt)
             v = v / v[0]
             return v[1]*self.fx, v[2]*self.fy
         else:
@@ -150,10 +142,8 @@ class game_aircraft_control():
     
     def move_aim_tgt(self):
         if self.pitch_sp is not None:
-            rel_tgt = quaternion_multiply(quaternion_inverse(self.q_view_abs), self.q_att)
-            if USE_OPENTRACK:
-                rel_tgt = quaternion_multiply(rel_tgt, self.q_cam_pitch_offset)
-            v = quaternion_rotate(rel_tgt, np.array([1, 0, 0]))
+            dir = q_to_dir(self.q_att)
+            v = quaternion_rotate(quaternion_inverse(self.q_view_abs), dir)
             v = v / v[0]
             return v[1]*self.fx, v[2]*self.fy
         else:

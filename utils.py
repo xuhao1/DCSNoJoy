@@ -47,6 +47,7 @@ def quaternion_rotate(q, v):
     v = np.array([v])
     v = v.transpose()
     v = mat @ v
+    v = v.transpose()[0]
     return v
 
 '''
