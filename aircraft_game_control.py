@@ -55,6 +55,21 @@ class game_aircraft_control():
         self.tracker = GameTracker()
         self.telem = DCSTelem()
         
+        
+        #View camera parameter
+        self.cx = win_w /2
+        self.cy = win_h /2
+        self.fx = self.fy = win_w/2/math.tan(DEFAULT_FOV/2)
+
+        self.OK = False
+        self.is_free_look = False
+        self.last_free_look = False
+
+        self.reset()
+        print(f"Camera cx {self.cx} cy{self.cy} fx {self.fx} fy {self.fy}")
+
+    def reset(self):
+        print("Reset aircraft con")
         self.ail = 0
         self.ele = 0
         self.rud = 0
@@ -90,16 +105,16 @@ class game_aircraft_control():
         self.pitchrate_b_sp = 0
         self.rollrate_b_sp = 0
 
-        #View camera parameter
-        self.cx = win_w /2
-        self.cy = win_h /2
-        self.fx = self.fy = win_w/2/math.tan(DEFAULT_FOV/2)
 
-        self.is_free_look = False
-
-        self.last_free_look = False
-
-        print(f"Camera cx {self.cx} cy{self.cy} fx {self.fx} fy {self.fy}")
+        if self.OK and self.yaw_sp == None:
+            print("Reset aircraft attitude setpoint")
+            self.yaw_sp = self.telem.yaw
+            self.pitch_sp = self.telem.pitch
+            self.roll_sp = self.telem.roll
+            self.q_att_tgt = quaternion_from_euler(0, self.pitch_sp, self.yaw_sp)
+            self.dir_tgt = q_to_dir(self.q_att_tgt)
+            self.q_view_abs = self.q_att_tgt.copy()
+            self.dir_view_abs = self.dir_tgt.copy()
 
     def get_ail(self):
         return self.ail
@@ -121,11 +136,6 @@ class game_aircraft_control():
             self.ail = x_sp*ailrate
             self.ele = -y_sp*elerate
         elif control_style == "warthunder" and self.OK and self.updated:
-            if self.yaw_sp == None:
-                self.yaw_sp = self.telem.yaw
-                self.pitch_sp = self.telem.pitch
-                self.roll_sp = self.telem.roll
-                self.q_att_tgt = quaternion_from_euler(0, self.pitch_sp, self.yaw_sp)
 
             self.dir_tgt += quaternion_rotate(self.q_view_abs, np.array([0, x_sp, y_sp], dtype=float))
             self.dir_tgt = unit_vector(self.dir_tgt)
@@ -235,21 +245,7 @@ class game_aircraft_control():
         if self.thr < 0:
             self.thr = 0
 
-    def pre_update(self):
-        self.telem.update()
-        self.OK = self.telem.OK
-        self.updated = self.telem.updated
 
-        self.user_ail = None
-        self.user_ele = None
-        self.user_rud = None
-
-        if self.OK and self.updated:
-            self.q_att = quaternion_from_euler(self.telem.data["roll"], self.telem.data["pitch"], self.telem.data["yaw"])
-            _1, _2 = self.move_aim_mouse()
-            _3, _4 = self.move_aim_tgt()
-            return _1, _2, _3, _4
-        return 0, 0, 0, 0
 
     def set_camera_view(self):
         if not self.is_free_look:
@@ -277,7 +273,29 @@ class game_aircraft_control():
         T_cam = mat @ [-CAMERA_X, 0, -CAMERA_Z]
         return self.q_view_abs, T_cam
 
+    def pre_update(self):
+        self.telem.update()
+        if self.telem.OK and not self.OK:
+            self.OK = self.telem.OK
+            self.reset()
+
+        self.OK = self.telem.OK
+        self.updated = self.telem.updated
+
+        self.user_ail = None
+        self.user_ele = None
+        self.user_rud = None
+
+        if self.OK and self.updated:
+            self.q_att = quaternion_from_euler(self.telem.data["roll"], self.telem.data["pitch"], self.telem.data["yaw"])
+            _1, _2 = self.move_aim_mouse()
+            _3, _4 = self.move_aim_tgt()
+            return _1, _2, _3, _4
+        return 0, 0, 0, 0
+    
     def update(self):
+        if not self.telem.OK or not self.updated:
+            return
         self.controller_update()
         ail = float_constrain(self.user_ail if self.user_ail else self.ail, -1, 1)
         ele = float_constrain(self.user_ele if self.user_ele else self.ele, -1, 1)

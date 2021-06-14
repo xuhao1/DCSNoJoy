@@ -62,3 +62,4 @@ keyboard_exit = "shift+esc"
 USE_VJOY = False
 USE_OPENTRACK = False
 MAIN_WIN_DURATION = 5
+DCS_TIMEOUT = 0.1

@@ -4,6 +4,7 @@ import select
 from configs import *
 import numpy as np
 from transformations import *
+import time
 
 class DCSTelem():
     def __init__(self):
@@ -27,6 +28,7 @@ class DCSTelem():
         self.ele = 0
         self.rud = 0
         self.thr = 0
+        self.last_msg_time = 0
 
     def send_dcs(self, data):
         self.dcs_sock_send.sendto(data.encode(), (DCS_UDP_IP, DCS_UDP_SEND_PORT))
@@ -70,7 +72,7 @@ class DCSTelem():
         while ready[0]:
             msg, addr = self.dcs_sock.recvfrom(1024) # buffer size is 1024 bytes
             ready = select.select([self.dcs_sock], [], [], 0.001) #Recv last
-
+            self.last_msg_time = time.time()
             self.data = self.parse_data(msg)
             for k in self.data:
                 setattr(self, k, self.data[k])
@@ -81,6 +83,11 @@ class DCSTelem():
                 self.OK = True
                 print("DCS Ready")
             self.updated = True
+        
+        if self.OK and time.time() - self.last_msg_time > DCS_TIMEOUT:
+            print("DCS offline")
+            self.OK = False
+            self.updated = False
 
     def parse_data(self, data):
         data = data.decode("utf-8") 
