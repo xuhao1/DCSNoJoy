@@ -9,7 +9,13 @@ host = "127.0.0.1"
 port = 27015
 
 port_recv = 27016
+nojoy_cam_pose = nil
+rel_pos = {}
+rel_pos.x = -10
+rel_pos.y = 10
+rel_pos.z = 0
 
+count = 0
 
 function LuaExportStart()
     log_file = io.open("C:/Users/xuhao/Saved Games/DCS/Logs/EasyControl.log", "w")
@@ -55,9 +61,13 @@ function parse_incoming_message(data, myData)
     LoSetCommand(2004, -numbers[5]) -- thrust
 
     local cam_pose = LoGetCameraPosition()
-    cam_pose.p.x = myData.Position.x + numbers[6]
-    cam_pose.p.y = myData.Position.y + numbers[7]
-    cam_pose.p.z = myData.Position.z + numbers[8]
+    -- cam_pose.p.x = myData.Position.x + numbers[6]
+    -- cam_pose.p.y = myData.Position.y + numbers[7]
+    -- cam_pose.p.z = myData.Position.z + numbers[8]
+
+    rel_pos.x = numbers[6]
+    rel_pos.y = numbers[7]
+    rel_pos.z = numbers[8]
 
     cam_pose.x.x = numbers[9]
     cam_pose.x.y = numbers[10]
@@ -70,7 +80,9 @@ function parse_incoming_message(data, myData)
     cam_pose.z.x = numbers[15]
     cam_pose.z.y = numbers[16]
     cam_pose.z.z = numbers[17]
-    LoSetCameraPosition(cam_pose)
+    nojoy_cam_pose = cam_pose
+    -- LoSetCameraPosition(cam_pose)
+    return cam_pose
 end
 
 function LuaExportActivityNextEvent(t)
@@ -107,7 +119,6 @@ function LuaExportActivityNextEvent(t)
 
     local myData = LoGetSelfData()
     if (myData) then
-
         local altBar = LoGetAltitudeAboveSeaLevel()
         local altRad = LoGetAltitudeAboveGroundLevel()
         local pitch, roll, yaw = myData.Pitch, myData.Bank, myData.Heading
@@ -117,31 +128,39 @@ function LuaExportActivityNextEvent(t)
         local aoa = LoGetAngleOfAttack()
         local tas = LoGetTrueAirSpeed()
         local omega = LoGetAngularVelocity()
-        local cam_pose = LoGetCameraPosition()
+        local cam_pose = {}
         local time = LoGetModelTime()
         data = connectSocRecv:receive()
         if data then
-            parse_incoming_message(data, myData)
+            nojoy_cam_pose = parse_incoming_message(data, myData)
+        end
+        if nojoy_cam_pose then
+            cam_pose = nojoy_cam_pose
+            cam_pose.p.x = pos.x + rel_pos.x -- + nojoy_cam_pose.p.x
+            cam_pose.p.y = pos.y + rel_pos.y -- + nojoy_cam_pose.p.y
+            cam_pose.p.z = pos.z + rel_pos.z -- + nojoy_cam_pose.p.z
+            LoSetCameraPosition(cam_pose)
+        else
+            cam_pose = LoGetCameraPosition()
         end
 
-        -- cam_pose.p = pos
-
-        local _datalog = string.format(
-            "name=%s time=%.3f altBar=%.3f x=%.5f y=%.5f z=%.5f pitch=%.5f roll=%.5f yaw=%.5f yawrate=%.5f pitchrate=%.5f rollrate=%.5f tas=%.3f aoa=%.5f \
-            Rcamxx=%.5f  Rcamxy=%.5f Rcamxz=%.5f Rcamyx=%.5f  Rcamyy=%.5f  Rcamyz=%.5f  Rcamzx=%.5f  Rcamzy=%.5f Rcamzz=%.5f Tcamx=%.5f Tcamy=%.5f Tcamz=%.5f\n", 
-            myData.Name, time, altBar, pos.x, pos.y, pos.z, pitch, roll, yaw, omega.y, omega.z, omega.x, tas, aoa,
-            cam_pose.x.x, cam_pose.x.y, cam_pose.x.z, 
-            cam_pose.y.x, cam_pose.y.y, cam_pose.y.z, 
-            cam_pose.z.x, cam_pose.z.y, cam_pose.z.z, 
-            cam_pose.p.x, cam_pose.p.y, cam_pose.p.z
-        )
-    
-        socket.try(connectSoc:sendto(_datalog, host, port))
-        log_file:write(_datalog)
-
-    else
+        if count%5 == 0 then
+            local _datalog = string.format(
+                "name=%s time=%.3f altBar=%.3f x=%.5f y=%.5f z=%.5f pitch=%.5f roll=%.5f yaw=%.5f yawrate=%.5f pitchrate=%.5f rollrate=%.5f tas=%.3f aoa=%.5f \
+                Rcamxx=%.5f  Rcamxy=%.5f Rcamxz=%.5f Rcamyx=%.5f  Rcamyy=%.5f  Rcamyz=%.5f  Rcamzx=%.5f  Rcamzy=%.5f Rcamzz=%.5f Tcamx=%.5f Tcamy=%.5f Tcamz=%.5f\n", 
+                myData.Name, time, altBar, pos.x, pos.y, pos.z, pitch, roll, yaw, omega.y, omega.z, omega.x, tas, aoa,
+                cam_pose.x.x, cam_pose.x.y, cam_pose.x.z, 
+                cam_pose.y.x, cam_pose.y.y, cam_pose.y.z, 
+                cam_pose.z.x, cam_pose.z.y, cam_pose.z.z, 
+                cam_pose.p.x, cam_pose.p.y, cam_pose.p.z
+            )
+        
+            socket.try(connectSoc:sendto(_datalog, host, port))
+            log_file:write(_datalog)
+        end
     end
-    return t+0.005
+    count = count + 1
+    return t+0.001
 end
 
 -- Index 00 = LoGetAccelerationUnits().x = Lateral acceleration (G)
