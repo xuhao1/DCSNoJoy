@@ -21,8 +21,9 @@ class DCSTelem():
         self.updated = False
 
         self.R_cam = np.eye(3, 3)
-        self.q_cam = np.array([1, 0, 0, 0])
-        self.T_cam = np.array([0, 0, 0])
+        self.q_cam = np.array([1, 0, 0, 0], dtype=float)
+        self.T_cam = np.array([0, 0, 0], dtype=float)
+        self.q_telem_cam = np.array([1, 0, 0, 0], dtype=float)
 
         self.ail = 0
         self.ele = 0
@@ -47,19 +48,12 @@ class DCSTelem():
         _s += f"{self.T_cam[1]:3.4f},"
         _s += f"{self.T_cam[2]:3.4f},"
 
-        for i in range(3):
-            for j in range(3):
-                _s += f"{self.R_cam[i, j]:3.4f},"
+        if ACTIVE_CTRL_VIEW:
+            for i in range(3):
+                for j in range(3):
+                    _s += f"{self.R_cam[i, j]:3.4f},"
         _s += "\n"
         self.send_dcs(_s)
-
-    def set_camera_pose(self, view_yaw, view_pitch, T):
-        # self.R_cam = quaternion_matrix(q)
-        self.R_cam = euler_matrix(0, view_yaw, -view_pitch)
-        Rcam = self.R_cam[0:3, 0:3]
-        self.T_cam[0] = T[0]
-        self.T_cam[1] = -T[2]
-        self.T_cam[2] = T[1]
 
     def set_control(self, ail, ele, rud, thr):
         self.ail = ail
@@ -83,11 +77,32 @@ class DCSTelem():
                 self.OK = True
                 print("DCS Ready")
             self.updated = True
+
+            if not ACTIVE_CTRL_VIEW:
+                self.update_telem_cam()
         
         if self.OK and time.time() - self.last_msg_time > DCS_TIMEOUT:
             print("DCS offline")
             self.OK = False
             self.updated = False
+
+    def set_camera_pose(self, view_yaw, view_pitch, T):
+        # self.R_cam = quaternion_matrix(q)
+        self.R_cam = euler_matrix(0, -view_yaw, view_pitch)
+        Rcam = self.R_cam[0:3, 0:3]
+        self.T_cam[0] = T[0]
+        self.T_cam[1] = -T[2]
+        self.T_cam[2] = T[1]
+
+    def update_telem_cam(self):
+        self.R_telem_cam = np.array([
+            [ self.Rcamxx, self.Rcamyx, self.Rcamyx, 0],
+            [ self.Rcamxy, self.Rcamyy, self.Rcamzy, 0],
+            [ self.Rcamxz, self.Rcamyz, self.Rcamzz, 0],
+            [ 0, 0, 0, 1]])
+        r, p, y = euler_from_matrix(self.R_telem_cam)
+        self.q_telem_cam = quaternion_from_euler(0, y, -p)
+        print(f"View pitch {y*57.3} yaw {p*57.3}")
 
     def parse_data(self, data):
         data = data.decode("utf-8") 

@@ -71,8 +71,12 @@ class game_aircraft_control():
             self.roll_sp = self.telem.roll
             self.q_att_tgt = quaternion_from_euler(0, self.pitch_sp, self.yaw_sp)
             self.dir_tgt = q_to_dir(self.q_att_tgt)
-            self.q_view_abs = self.q_att_tgt.copy()
-            self.dir_view_abs = self.dir_tgt.copy()
+
+            if ACTIVE_CTRL_VIEW:
+                self.q_view_abs = self.q_att_tgt.copy()
+                self.dir_view_abs = self.dir_tgt.copy()
+            else:
+                self.update_view_from_telem()
 
     def get_ail(self):
         return self.ail
@@ -100,22 +104,23 @@ class game_aircraft_control():
             self.roll_sp, self.pitch_sp, self.yaw_sp = euler_from_quaternion(self.q_att_tgt)
             # self.yaw_sp, self.pitch_sp, self.roll_sp = euler_from_quaternion(self.q_att_tgt, "szyx")
 
-    def move_aim_mouse(self):
-        if self.pitch_sp is not None:
-            v = quaternion_rotate(quaternion_inverse(self.q_view_abs), self.dir_tgt)
+    def dir_to_screenpos(self, dir):
+        v = quaternion_rotate(quaternion_inverse(self.q_view_abs), dir)
+        if v[0] > 0:
             v = v / v[0]
             return v[1]*self.fx, v[2]*self.fy
-        else:
-            return 0, 0
+        return -10000, -10000
+
+    def move_aim_mouse(self):
+        if self.pitch_sp is not None:
+            return self.dir_to_screenpos(self.dir_tgt)
+        return -10000, -10000
     
     def move_aim_tgt(self):
         if self.pitch_sp is not None:
             dir = q_to_dir(self.q_att)
-            v = quaternion_rotate(quaternion_inverse(self.q_view_abs), dir)
-            v = v / v[0]
-            return v[1]*self.fx, v[2]*self.fy
-        else:
-            return 0, 0
+            return self.dir_to_screenpos(dir)
+        return -10000, -10000
 
     def status(self):
         # yaw_sp, pitch_sp, roll_sp = euler_from_quaternion(self.q_att_tgt, "rzyx")
@@ -171,23 +176,33 @@ class game_aircraft_control():
         self.dir_view_abs = q_to_dir(q_view_sp)
         return q_view_sp, self.dir_view_abs
 
-    def set_mouse_free_look(self, _x, _y):
-        self.is_free_look = True
-        _x = _x / self.fx
-        _y = _y / self.fx
+    def update_view_from_telem(self):
+        self.q_view_abs = self.telem.q_telem_cam
+        self.dir_view_abs = q_to_dir(self.q_view_abs)
 
-        self.dir_view_abs += quaternion_rotate(self.q_view_abs, np.array([0, _x, _y], dtype=float))
-        self.dir_view_abs = unit_vector(self.dir_view_abs)
-        self.q_view_abs = dir_to_q(self.dir_view_abs)
-        _, self.view_pitch, self.view_yaw = euler_from_quaternion(self.q_view_abs)
-        # print(f"Free look yaw {self.view_yaw*57.3:3.1f} pitch {self.view_pitch*57.3:3.1f} ")
-        self.last_free_look = True
+    def set_mouse_free_look(self, _x, _y):
+        if ACTIVE_CTRL_VIEW:
+            self.is_free_look = True
+            _x = _x / self.fx
+            _y = _y / self.fx
+
+            self.dir_view_abs += quaternion_rotate(self.q_view_abs, np.array([0, _x, _y], dtype=float))
+            self.dir_view_abs = unit_vector(self.dir_view_abs)
+            self.q_view_abs = dir_to_q(self.dir_view_abs)
+            _, self.view_pitch, self.view_yaw = euler_from_quaternion(self.q_view_abs)
+            # print(f"Free look yaw {self.view_yaw*57.3:3.1f} pitch {self.view_pitch*57.3:3.1f} ")
+            self.last_free_look = True
+        else:
+            self.update_view_from_telem()
     
     def set_mouse_free_look_off(self):
-        self.is_free_look = False
-        if self.q_view_abs is None or self.last_free_look:
-            self.q_view_abs, self.dir_view_abs = self.q_default_view()
-            self.last_free_look = False
+        if ACTIVE_CTRL_VIEW:
+            self.is_free_look = False
+            if self.q_view_abs is None or self.last_free_look:
+                self.q_view_abs, self.dir_view_abs = self.q_default_view()
+                self.last_free_look = False
+        else:
+            self.update_view_from_telem()
 
     def set_user_ele(self, ele):
         self.user_ele = ele 
@@ -208,17 +223,16 @@ class game_aircraft_control():
         if self.thr < 0:
             self.thr = 0
 
-
-
     def set_camera_view(self):
-        if not self.is_free_look:
-            q_view_sp, _ = self.q_default_view()
-            self.q_view_abs = quaternion_slerp(self.q_view_abs, q_view_sp, view_filter_rate)
-            self.dir_view_abs = q_to_dir(self.q_view_abs)
+        if ACTIVE_CTRL_VIEW:
+            if not self.is_free_look:
+                q_view_sp, _ = self.q_default_view()
+                self.q_view_abs = quaternion_slerp(self.q_view_abs, q_view_sp, view_filter_rate)
+                self.dir_view_abs = q_to_dir(self.q_view_abs)
+            q_cam, T_cam = self.cameraPose()
+            self.telem.set_camera_pose(self.view_yaw, self.view_pitch, T_cam)
+        
         _, self.view_pitch, self.view_yaw = euler_from_quaternion(self.q_view_abs)
-
-        q_cam, T_cam = self.cameraPose()
-        self.telem.set_camera_pose(self.view_yaw, self.view_pitch, T_cam)
 
     def cameraPose(self):
         # T is relative to our aircraft

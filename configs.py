@@ -65,4 +65,5 @@ MAIN_WIN_DURATION = 5
 DCS_TIMEOUT = 0.1
 HIDE_WIHTOUT_DCS = False
 
+#Only works in external view
 ACTIVE_CTRL_VIEW = True

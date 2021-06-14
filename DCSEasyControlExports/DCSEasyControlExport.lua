@@ -44,8 +44,10 @@ end
 function parse_incoming_message(data, myData)
     log.write("EasyControl.EXPORT Recv", log.INFO, data)
     numbers = {}
+    local data_num = 0
     for num in string.gmatch(data, '([^,]+)') do
         table.insert(numbers, tonumber(num))
+        data_num = data_num + 1
     end
     local time = LoGetModelTime()
     local dt = time - numbers[1]
@@ -69,20 +71,23 @@ function parse_incoming_message(data, myData)
     rel_pos.y = numbers[7]
     rel_pos.z = numbers[8]
 
-    cam_pose.x.x = numbers[9]
-    cam_pose.x.y = numbers[10]
-    cam_pose.x.z = numbers[11]
+    if data_num >= 17 then
+        cam_pose.x.x = numbers[9]
+        cam_pose.y.x = numbers[10]
+        cam_pose.z.x = numbers[11]
 
-    cam_pose.y.x = numbers[12]
-    cam_pose.y.y = numbers[13]
-    cam_pose.y.z = numbers[14]
+        cam_pose.x.y = numbers[12]
+        cam_pose.y.y = numbers[13]
+        cam_pose.z.y = numbers[14]
 
-    cam_pose.z.x = numbers[15]
-    cam_pose.z.y = numbers[16]
-    cam_pose.z.z = numbers[17]
-    nojoy_cam_pose = cam_pose
-    -- LoSetCameraPosition(cam_pose)
-    return cam_pose
+        cam_pose.x.z = numbers[15]
+        cam_pose.y.z = numbers[16]
+        cam_pose.z.z = numbers[17]
+        nojoy_cam_pose = cam_pose
+        -- LoSetCameraPosition(cam_pose)
+        return cam_pose
+    end
+    return nil
 end
 
 function LuaExportActivityNextEvent(t)
