@@ -142,12 +142,17 @@ class game_aircraft_control():
         dyaw = dw[2]
         #We may also consider use g instead
         roll_sp = float_constrain(dyaw*p_yaw_w_to_roll, -MAX_BANK, MAX_BANK)
-        self.q_att_sp = quaternion_multiply(q_tgt, quaternion_from_euler(roll_sp, 0, 0))
+
+        # self.q_att_sp = quaternion_multiply(q_tgt, quaternion_from_euler(roll_sp, 0, 0))
+        #Use roll instead of yaw, so we can remove yaw now
+        q_att_sp = quaternion_multiply(q_tgt, quaternion_from_euler(roll_sp, 0, 0))
+        self.q_att_sp = quaternion_multiply(quaternion_from_euler(0, 0, -dyaw), q_att_sp)
 
         self.roll_sp, self.pitch_sp, self.yaw_sp = euler_from_quaternion(self.q_att_sp)
-
         dw = att_err_to_tangent_space(self.q_att_sp, self.q_att)
         self.dw_sp = dw
+        
+        self.dw_sp[2] += self.dw_tgt[2]
         return dw
 
     def controller_update(self):
@@ -246,12 +251,12 @@ class game_aircraft_control():
         if not self.telem.OK or not self.updated:
             return
         self.controller_update()
-        ail = float_constrain(self.user_ail if self.user_ail else self.ail, -1, 1)
-        ele = float_constrain(self.user_ele if self.user_ele else self.ele, -1, 1)
-        rud = float_constrain(self.user_rud if self.user_rud else self.rud, -1, 1)
+        self.ail = float_constrain(self.user_ail if self.user_ail else self.ail, -1, 1)
+        self.ele = float_constrain(self.user_ele if self.user_ele else self.ele, -1, 1)
+        self.rud = float_constrain(self.user_rud if self.user_rud else self.rud, -1, 1)
         
         self.set_camera_view()
-        self.telem.set_control(ail, ele, rud,(self.thr * 2 -1))
+        self.telem.set_control(self.ail, self.ele, self.rud,(self.thr * 2 -1))
         self.telem.send_dcs_command()
 
 if __name__ == '__main__':

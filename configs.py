@@ -11,7 +11,7 @@ VIEW_OFFSET = 0
 MAX_BANK = 80/57.3
 
 CAMERA_X = 30
-CAMERA_Z = 5
+CAMERA_Z = 10
 
 ailrate = 1.5
 elerate = 2.0
@@ -26,13 +26,13 @@ control_style = "warthunder"
 #For F18
 p_roll = 2.0
 p_pitch = 4.0
-p_yaw = 1.0 # careful about the sideslip!
+p_yaw = 4.0 # careful about the sideslip!
 
 p_rollrate = 1.0
 p_pitchrate = 0.6
 p_yawrate = 1.0
 
-p_yaw_w_to_roll = 3.0
+p_yaw_w_to_roll = 10.0
 
 #p yaw to roll
 
@@ -64,3 +64,5 @@ USE_OPENTRACK = False
 MAIN_WIN_DURATION = 5
 DCS_TIMEOUT = 0.1
 HIDE_WIHTOUT_DCS = False
+
+ACTIVE_CTRL_VIEW = True
