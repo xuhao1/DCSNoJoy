@@ -13,7 +13,6 @@ MAX_BANK = 80/57.3
 CAMERA_X = 30
 CAMERA_Z = 5
 
-screen_scale = 2000
 ailrate = 1.5
 elerate = 2.0
 

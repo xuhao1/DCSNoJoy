@@ -62,17 +62,20 @@ class MainWindow(QtWidgets.QMainWindow):
         
         self.setWindowTitle(WIN_NAME)
         
-        self.status = QLabel('', self)
-        self.status.move(30, 50)
-        self.status.setFont(QFont('SansSerif', 15))
+        self.status = QLabel('Wait for DCS Connection', self)
+        self.status.move(30, 80)
+        self.status.setFont(QFont('Consolas', 15))
         self.status.setFixedSize(1000, 200)
+        self.status.setStyleSheet('color: yellow')
+
 
         self.setGeometry(DCS_X, DCS_Y, DCS_W, DCS_H)
 
         self.aim_tgt = QLabel('+', self)
         self.aim_tgt.move(0, 0)
-        self.aim_tgt.setFont(QFont('SansSerif', 30))
+        self.aim_tgt.setFont(QFont('Arial', 30))
         self.aim_tgt.setFixedSize(30, 30)
+        self.aim_tgt.setStyleSheet('color: red')
 
         self.load_image_label()
 
@@ -120,14 +123,16 @@ class MainWindow(QtWidgets.QMainWindow):
         
         dmouse_x = (x - self.windows_center_x0)*self.vmouse_rate
         dmouse_y = (y - self.windows_center_y0)*self.vmouse_rate
+        
+        self.status.setStyleSheet('color: green')
 
         if self.is_free_look:
             self.aircraft_con.set_mouse_free_look(dmouse_x, dmouse_y)
-            self.status.setText(f"FreeLook {self.aircraft_con.view_yaw*57.3:3.1f} {self.aircraft_con.view_pitch*57.3:3.1f}")
+            self.status.setText(f"FreeLook\n{self.aircraft_con.view_yaw*57.3:3.1f} {self.aircraft_con.view_pitch*57.3:3.1f}")
         else:
             self.aircraft_con.set_mouse_free_look_off()
             self.aircraft_con.set_mouse_aircraft_control(dmouse_x, dmouse_y)
-            self.status.setText(f"MouseAim {self.aircraft_con.status()}")
+            self.status.setText(f"MouseAim\n{self.aircraft_con.status()}")
 
         mouse.move(self.windows_center_x0, self.windows_center_y0)
         self.move_virtual_mouse(self.vmouse_x, self.vmouse_y)
@@ -155,6 +160,9 @@ class MainWindow(QtWidgets.QMainWindow):
         self.vmouse_x, self.vmouse_y, self.aim_tgt_x, self.aim_tgt_y = self.aircraft_con.pre_update()
 
         top_win = win32gui.GetWindowText(win32gui.GetForegroundWindow())
+        if not self.aircraft_con.OK:
+            self.status.setText(f"Wait for DCS Connection")
+            self.status.setStyleSheet('color: yellow')
         if top_win != DCS_WIN_NAME and top_win != WIN_NAME or not self.aircraft_con.OK or not self.aircraft_con.updated:
             return
 

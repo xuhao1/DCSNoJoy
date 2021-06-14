@@ -68,6 +68,7 @@ class game_aircraft_control():
         self.view_pitch = 0
 
         self.q_view_abs = None
+        self.dir_view_abs = np.array([1, 0, 0], dtype=float)
 
         self.q_att_sp = np.array([1, 0, 0, 0], dtype=float) # Control Setpoint now, contain roll
 
@@ -113,8 +114,8 @@ class game_aircraft_control():
         return self.thr
 
     def set_mouse_aircraft_control(self, _x, _y):
-        x_sp =  _x / screen_scale 
-        y_sp =  _y / screen_scale 
+        x_sp =  _x / self.fx 
+        y_sp =  _y / self.fx 
         
         if control_style == "battlefield":
             self.ail = x_sp*ailrate
@@ -170,13 +171,13 @@ class game_aircraft_control():
         yaw_sp, pitch_sp, roll_sp = self.yaw_sp, self.pitch_sp, self.roll_sp
 
         if self.telem.OK:
-            _s = f"{self.telem.name} t {self.telem.time:3.1f}\n"
+            _s =  f"t {self.telem.time:3.1f} {self.telem.name}\n"
             _s += f"TAS: {self.telem.tas*3.6:3.1f}km/h AoA {self.telem.aoa:3.1f}\n"
             _s += f"yaw: sp {yaw_sp*57.3:3.1f} raw {self.telem.yaw*57.3:3.1f} rate_w_sp {self.yawrate_w_sp*57.3:3.1f} rate {self.telem.data['yawrate']*57.3:3.1f}\n"
             _s += f"pitch sp: {pitch_sp*57.3:3.1f} pitch {self.telem.pitch*57.3:3.1f} rate_b_sp {self.pitchrate_b_sp*57.3:3.1f} rate {self.telem.data['pitchrate']*57.3:3.1f}\n"
             _s += f"roll: sp {roll_sp*57.3:3.1f} raw {self.telem.roll*57.3:3.1f} rate {self.telem.data['rollrate']*57.3:3.1f}\n"
             # _s += f"x {self.telem.x:5.1f} y {self.telem.y:3.1f} z {self.telem.z:3.1f}\n"
-            _s += f"thr {self.thr*100:5.1f}%"
+            _s += f"thr {self.thr*100:5.1f}%\n"
             print(_s)
             return _s
         return "Wait for connection"
@@ -194,23 +195,25 @@ class game_aircraft_control():
     def q_default_view(self):
         q_view_sp = quaternion_multiply(self.q_cam_pitch_offset, self.q_att_sp)
         q_view_sp = setZeroRoll(q_view_sp)
-        return q_view_sp
+        self.dir_view_abs = q_to_dir(q_view_sp)
+        return q_view_sp, self.dir_view_abs
 
     def set_mouse_free_look(self, _x, _y):
         self.is_free_look = True
-        ox = 0
-        oy = -_y/self.fx*view_rate
-        oz =  _x/self.fy*view_rate
-        self.q_view_abs += 0.5*quaternion_multiply([0, ox, oy, oz], self.q_view_abs)
-        self.q_view_abs = setZeroRoll(self.q_view_abs)
+        _x = _x / self.fx
+        _y = _y / self.fx
+
+        self.dir_view_abs += quaternion_rotate(self.q_view_abs, np.array([0, _x, _y], dtype=float))
+        self.dir_view_abs = unit_vector(self.dir_view_abs)
+        self.q_view_abs = dir_to_q(self.dir_view_abs)
         _, self.view_pitch, self.view_yaw = euler_from_quaternion(self.q_view_abs)
-        print(f"Free look yaw {self.view_yaw*57.3:3.1f} pitch {self.view_pitch*57.3:3.1f} ")
+        # print(f"Free look yaw {self.view_yaw*57.3:3.1f} pitch {self.view_pitch*57.3:3.1f} ")
         self.last_free_look = True
     
     def set_mouse_free_look_off(self):
         self.is_free_look = False
         if self.q_view_abs is None or self.last_free_look:
-            self.q_view_abs = self.q_default_view()
+            self.q_view_abs, self.dir_view_abs = self.q_default_view()
             self.last_free_look = False
 
     def set_user_ele(self, ele):
@@ -250,8 +253,9 @@ class game_aircraft_control():
 
     def set_camera_view(self):
         if not self.is_free_look:
-            q_view_sp = self.q_default_view()
+            q_view_sp, _ = self.q_default_view()
             self.q_view_abs = quaternion_slerp(self.q_view_abs, q_view_sp, view_filter_rate)
+            self.dir_view_abs = q_to_dir(self.q_view_abs)
         _, self.view_pitch, self.view_yaw = euler_from_quaternion(self.q_view_abs)
 
         if USE_OPENTRACK:
