@@ -13,6 +13,10 @@ MAX_BANK = 80/57.3
 CAMERA_X = 30
 CAMERA_Z = 8
 
+#P51
+#CAMERA_X = 20
+#CAMERA_Z = 4
+
 ailrate = 1.5
 elerate = 2.0
 
@@ -26,7 +30,7 @@ control_style = "warthunder"
 #For F18
 p_roll = 2.0
 p_pitch = 4.0
-p_yaw = 4.0 # careful about the sideslip!
+p_yaw = 4.0 # P51
 
 p_rollrate = 1.0
 p_pitchrate = 0.6

@@ -70,6 +70,8 @@ class DCSTelem():
             self.data = self.parse_data(msg)
             for k in self.data:
                 setattr(self, k, self.data[k])
+            
+            self.yawrate = - self.yawrate # Need to inverse to NED yawrate
 
             # convert origin Rcam to euler will give roll yaw pitch, so we need to switch z y axis
             
