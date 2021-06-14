@@ -1,58 +1,14 @@
 import math
 import time
-import socket
 import math
 from transformations import *
 from configs import *
 from utils import *
 from DCSTelem import *
-import socket
-
-if USE_VJOY:
-    import pyvjoy
-
-class GameTracker:
-    def __init__(self, ip="127.0.0.1", port=4242):
-        self.UDP_IP = ip
-        self.UDP_PORT = 4242
-        self.sock = socket.socket(socket.AF_INET, # Internet
-                     socket.SOCK_DGRAM) # UDP
-
-        self.T0 = None
-    
-    def send_pose(self, eul, T):
-        data = pose_to_udp_msg(eul, T)
-        self.sock.sendto(data, (self.UDP_IP, self.UDP_PORT))
-
-
-class VJoyManager(object):
-    def __init__(self):
-        self.j = pyvjoy.VJoyDevice(1)
-    
-    def set_joystick_x(self, value):
-        self.j.set_axis(pyvjoy.HID_USAGE_X, toHexCmd(value))
-    
-    def set_joystick_y(self, value):
-        self.j.set_axis(pyvjoy.HID_USAGE_Y, toHexCmd(value))
-    
-    def set_joystick_z(self, value):
-        self.j.set_axis(pyvjoy.HID_USAGE_Z, toHexCmd(value))
-
-    def set_joystick_rz(self, value):
-        self.j.set_axis(pyvjoy.HID_USAGE_RZ, toHexCmd(value))
-
-    def set_joystick_rx(self, value):
-        self.j.set_axis(pyvjoy.HID_USAGE_RX, toHexCmd(value))
-
-    def set_joystick_ry(self, value):
-        self.j.set_axis(pyvjoy.HID_USAGE_RY, toHexCmd(value))
 
 
 class game_aircraft_control():
     def __init__(self, win_w, win_h):
-        if USE_VJOY:
-            self.vjoyman = VJoyManager()
-        self.tracker = GameTracker()
         self.telem = DCSTelem()
         
         
@@ -254,17 +210,8 @@ class game_aircraft_control():
             self.dir_view_abs = q_to_dir(self.q_view_abs)
         _, self.view_pitch, self.view_yaw = euler_from_quaternion(self.q_view_abs)
 
-        if USE_OPENTRACK:
-            q_rel = quaternion_multiply(quaternion_from_euler(0, -self.telem.pitch, -self.telem.yaw), self.q_view_abs)
-            euler = euler_from_quaternion(q_rel)
-
-            mat = quaternion_matrix(quaternion_inverse(self.q_view_abs))[0:3,0:3]
-            T_cam = np.dot(mat, [CAMERA_X, 0, CAMERA_Z])*100
-            
-            self.tracker.send_pose([euler[2]*57.3, euler[1]*57.3, 0], [0, 0, 0])
-        else:
-            q_cam, T_cam = self.cameraPose()
-            self.telem.set_camera_pose(self.view_yaw, self.view_pitch, T_cam)
+        q_cam, T_cam = self.cameraPose()
+        self.telem.set_camera_pose(self.view_yaw, self.view_pitch, T_cam)
 
     def cameraPose(self):
         # T is relative to our aircraft
@@ -301,17 +248,9 @@ class game_aircraft_control():
         ele = float_constrain(self.user_ele if self.user_ele else self.ele, -1, 1)
         rud = float_constrain(self.user_rud if self.user_rud else self.rud, -1, 1)
         
-        if USE_VJOY:
-            self.vjoyman.set_joystick_x(ail)
-            self.vjoyman.set_joystick_y(ele)
-            self.vjoyman.set_joystick_rz(rud)
-            self.vjoyman.set_joystick_z(-(self.thr * 2 -1))
-            self.set_camera_view()
-        else:
-            self.set_camera_view()
-
-            self.telem.set_control(ail, ele, rud,(self.thr * 2 -1))
-            self.telem.send_dcs_command()
+        self.set_camera_view()
+        self.telem.set_control(ail, ele, rud,(self.thr * 2 -1))
+        self.telem.send_dcs_command()
 
 if __name__ == '__main__':
     aircraft_con = game_aircraft_control()
