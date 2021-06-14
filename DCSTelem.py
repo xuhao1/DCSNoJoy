@@ -49,7 +49,6 @@ class DCSTelem():
             for j in range(3):
                 _s += f"{self.R_cam[i, j]:3.4f},"
         _s += "\n"
-        print(_s)
         self.send_dcs(_s)
 
     def set_camera_pose(self, view_yaw, view_pitch, T):
@@ -59,8 +58,6 @@ class DCSTelem():
         self.T_cam[0] = T[0]
         self.T_cam[1] = -T[2]
         self.T_cam[2] = T[1]
-
-        print("cam Pose", self.T_cam)
 
     def set_control(self, ail, ele, rud, thr):
         self.ail = ail

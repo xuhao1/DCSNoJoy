@@ -12,6 +12,7 @@ R_NUEtoNED = [
     [0, -1, 0]
 ]
 
+# Camera Roatations
 For camera
 Rotation:
 R = eye(3)
@@ -49,3 +50,39 @@ To convert cam pos to make it soround the aircraft
 Tcam_ned = Rcam_ned*Toffset_ned
 Tcam_dcs[1] = -Tcam_ned[2]
 Tcam_dcs[2] = Tcam_ned[1]
+
+# python transformations
+Common euler angles on aviation is ZYX, which is also default by python transformations.py
+Here we use MATLAB as standard
+
+```matlab
+>> eul = [1.2 -0.2 0.4];
+rotmZYX = eul2rotm(eul)
+
+rotmZYX =
+
+    0.3551   -0.8865    0.2966
+    0.9135    0.2616   -0.3117
+    0.1987    0.3817    0.9027
+```
+
+For use python transformations.py
+
+we have
+
+```python
+>>> euler_matrix(0.4, -0.2, 1.2) # default is sxyz
+array([[ 0.35513472, -0.88649883,  0.29664651,  0.        ],
+       [ 0.91346036,  0.26164594, -0.31165939,  0.        ],
+       [ 0.19866933,  0.3816559 ,  0.9027011 ,  0.        ],
+       [ 0.        ,  0.        ,  0.        ,  1.        ]])
+```
+
+or 
+```python
+>>> euler_matrix(1.2, -0.2, 0.4, "rzyx")
+array([[ 0.35513472, -0.88649883,  0.29664651,  0.        ],
+       [ 0.91346036,  0.26164594, -0.31165939,  0.        ],
+       [ 0.19866933,  0.3816559 ,  0.9027011 ,  0.        ],
+       [ 0.        ,  0.        ,  0.        ,  1.        ]])
+```
