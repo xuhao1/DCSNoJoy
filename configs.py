@@ -11,7 +11,7 @@ VIEW_OFFSET = 0
 MAX_BANK = 80/57.3
 
 CAMERA_X = 30
-CAMERA_Z = 10
+CAMERA_Z = 8
 
 ailrate = 1.5
 elerate = 2.0
@@ -67,3 +67,5 @@ HIDE_WIHTOUT_DCS = False
 
 #Only works in external view
 ACTIVE_CTRL_VIEW = True
+
+ACTIVE_CTRL_F3 = True

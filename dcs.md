@@ -51,6 +51,9 @@ Tcam_ned = Rcam_ned*Toffset_ned
 Tcam_dcs[1] = -Tcam_ned[2]
 Tcam_dcs[2] = Tcam_ned[1]
 
+In F11 view, you can freely write control. However the WSAD key will cause jiiter.
+In F3 view, you can change the view by write the relative position (interesting), because it always foucs on the aircraft.
+
 # python transformations
 Common euler angles on aviation is ZYX, which is also default by python transformations.py
 Here we use MATLAB as standard

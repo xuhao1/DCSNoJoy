@@ -78,8 +78,7 @@ class DCSTelem():
                 print("DCS Ready")
             self.updated = True
 
-            if not ACTIVE_CTRL_VIEW:
-                self.update_telem_cam()
+            self.update_telem_cam()
         
         if self.OK and time.time() - self.last_msg_time > DCS_TIMEOUT:
             print("DCS offline")
@@ -89,6 +88,7 @@ class DCSTelem():
     def set_camera_pose(self, view_yaw, view_pitch, T):
         # self.R_cam = quaternion_matrix(q)
         self.R_cam = euler_matrix(0, -view_yaw, view_pitch)
+        print("set view pitch yaw", view_pitch*57.3, view_yaw*57.3)
         Rcam = self.R_cam[0:3, 0:3]
         self.T_cam[0] = T[0]
         self.T_cam[1] = -T[2]

@@ -239,6 +239,8 @@ class game_aircraft_control():
         # mat = quaternion_matrix(quaternion_inverse(self.q_view_abs))[0:3,0:3]
         mat = quaternion_matrix(self.q_view_abs)[0:3,0:3]
         T_cam = mat @ [-CAMERA_X, 0, -CAMERA_Z]
+        if ACTIVE_CTRL_F3:
+            T_cam = mat @ [-CAMERA_X, 0, 0]
         return self.q_view_abs, T_cam
 
     def pre_update(self):
