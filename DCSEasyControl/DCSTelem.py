@@ -87,10 +87,10 @@ class DCSTelem():
             self.OK = False
             self.updated = False
 
-    def set_camera_pose(self, view_yaw, view_pitch, T):
+    def set_camera_pose(self, q_cam, T):
         # self.R_cam = quaternion_matrix(q)
-        self.R_cam = euler_matrix(0, -view_yaw, view_pitch)
-        Rcam = self.R_cam[0:3, 0:3]
+        self.R_cam = quaternion_matrix(q_cam)
+        self.R_cam[0:3,0:3] = R_NUEtoNED.transpose() @self.R_cam[0:3,0:3]@R_NUEtoNED
         self.T_cam[0] = T[0]
         self.T_cam[1] = -T[2]
         self.T_cam[2] = T[1]

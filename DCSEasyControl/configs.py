@@ -44,12 +44,11 @@ CAMERA_X = 20
 CAMERA_Z = 5
 
 # For VIEW
+view_rate = 2.0
 view_filter_rate = 0.005
-view_rate = 1.0
 #CAMERA_X = 30
 #CAMERA_Z = 5
 CAM_PITCH_OFFSET = -10/57.3
-
 #Keyboard shortcuts
 keyboard_freelook = "c"
 

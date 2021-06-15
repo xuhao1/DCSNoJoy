@@ -40,8 +40,8 @@ class dcs_cam_control():
     def set_mouse_free_look(self, _x, _y):
         if ACTIVE_CTRL_VIEW:
             self.is_free_look = True
-            _x = _x / self.fx
-            _y = _y / self.fx
+            _x = _x / self.fx * view_rate
+            _y = _y / self.fx * view_rate
 
             self.dir_view_abs += quaternion_rotate(self.q_view_abs, np.array([0, _x, _y], dtype=float))
             self.dir_view_abs = unit_vector(self.dir_view_abs)
@@ -75,7 +75,7 @@ class dcs_cam_control():
                 self.q_view_abs = quaternion_slerp(self.q_view_abs, q_view_sp, view_filter_rate)
                 self.dir_view_abs = q_to_dir(self.q_view_abs)
             q_cam, T_cam = self.cameraPose()
-            self.telem.set_camera_pose(self.view_yaw, self.view_pitch, T_cam)
+            self.telem.set_camera_pose(q_cam, T_cam)
         
         _, self.view_pitch, self.view_yaw = euler_from_quaternion(self.q_view_abs)
 
