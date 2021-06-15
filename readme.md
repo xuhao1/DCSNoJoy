@@ -6,8 +6,11 @@
 
 Delete all mouse view axis
 
-Set DCS to F12/F3 view.
+Install DCSEasyControlExports to your "Saved Games/DCS/" Path
+
 >python DCSEasyControl/main.py
+
+Set DCS to F12 view.
 
 ## Implement Details
 
