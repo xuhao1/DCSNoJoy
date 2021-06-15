@@ -127,10 +127,10 @@ class MainWindow(QtWidgets.QMainWindow):
         self.status.setStyleSheet('color: green')
 
         if self.is_free_look:
-            self.aircraft_con.set_mouse_free_look(dmouse_x, dmouse_y)
-            self.status.setText(f"FreeLook\n{self.aircraft_con.view_yaw*57.3:3.1f} {self.aircraft_con.view_pitch*57.3:3.1f}")
+            self.aircraft_con.cam.set_mouse_free_look(dmouse_x, dmouse_y)
+            self.status.setText(f"FreeLook\n{self.aircraft_con.cam.view_yaw*57.3:3.1f} {self.aircraft_con.cam.view_pitch*57.3:3.1f}")
         else:
-            self.aircraft_con.set_mouse_free_look_off()
+            self.aircraft_con.cam.set_mouse_free_look_off()
             self.aircraft_con.set_mouse_aircraft_control(dmouse_x, dmouse_y)
             self.status.setText(f"MouseAim\n{self.aircraft_con.status()}")
 
