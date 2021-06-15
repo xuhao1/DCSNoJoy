@@ -11,23 +11,25 @@ General aviation (x', y', z')
 north-east-down
 
 DCS to Aviation
+```python
 R_NUEtoNED = [
     [1, 0, 0],
     [0, 0, 1],
     [0, -1, 0]
 ]
+```
 
 ## Matrix in DCS (guess is inherit from opengl)
 
 R=LoGetCameraPosition()
 Then
-Transformation
-
+Transformation matrix is
+```python
 [ [ R.x.x, R.y.x, R.y.x, R.p.x],
  [ R.x.y, R.y.y, R.z.y, R.p.y],
  [ R.x.z, R.y.z, R.z.z, R.p.z],
  [0, 0, 0, 1]]
-
+```
 
 ## Camera Roatations
 The Front of camera is it's x axis. up is +y, left is +z.
@@ -37,7 +39,7 @@ Rotation:
 R = eye(3)
 The view is point to north, left screen is west, right screen is east up down correct
 
-
+```python
 euler_matrix(0, 0, np.pi/2)
     Rotate yaw + 90, the view is watch sky
 
@@ -52,11 +54,13 @@ euler_matrix(0, pi/2, 0)
 
 euler_matrix(0, -pi/2, 0)
     Watch east
-
+```
 So naive way is
 Rcam_dcs = euler_matrix(0, view_yaw, -view_pitch)
 
 Translation:
+
+```
 T = aircraft_pos + [0, 0, 0] # camera is near center of aircraft
 T = aircraft_pos + [30, 0, 0] # camera is at north of aircraft
 T = aircraft_pos + [0, 30, 0] # camera is at upward the aircraft
@@ -64,12 +68,15 @@ T = aircraft_pos + [0, -30, 0] # camera i at downward of aircraft
 
 T = aircraft_pos + [0, 0, 30] # camera is at east the aircraft
 T = aircraft_pos + [0, 0, -30] # camera i at west of aircraft
+```
 
 To convert cam pos to make it soround the aircraft
 
+```
 Tcam_ned = Rcam_ned*Toffset_ned
 Tcam_dcs[1] = -Tcam_ned[2]
 Tcam_dcs[2] = Tcam_ned[1]
+```
 
 In F11 view, you can freely write control. However the WSAD key will cause jiiter.
 In F3 view, you can change the view by write the relative position (interesting), because it always foucs on the aircraft.

@@ -147,6 +147,10 @@ function LuaExportActivityNextEvent(t)
             LoSetCameraPosition(cam_pose)
         else
             cam_pose = LoGetCameraPosition()
+            cam_pose.p.x = pos.x + rel_pos.x -- + nojoy_cam_pose.p.x
+            cam_pose.p.y = pos.y + rel_pos.y -- + nojoy_cam_pose.p.y
+            cam_pose.p.z = pos.z + rel_pos.z -- + nojoy_cam_pose.p.z
+            LoSetCameraPosition(cam_pose)
         end
 
         if count%5 == 0 then
