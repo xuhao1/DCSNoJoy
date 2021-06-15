@@ -29,6 +29,7 @@ class game_aircraft_control():
         self.q_att_sp = np.array([1, 0, 0, 0], dtype=float) # Control Setpoint now, contain roll
         self.q_att_tgt = np.array([1, 0, 0, 0], dtype=float) # Control target, no roll
         self.dir_tgt = np.array([1, 0, 0], dtype=float)
+        self.dir_sp = np.array([1, 0, 0], dtype=float)
 
         self.q_att = np.array([1, 0, 0, 0], dtype=float)
 
@@ -37,7 +38,8 @@ class game_aircraft_control():
         self.pitch_sp = None
         self.roll_sp = None
 
-        self.N_sp = np.array([0, 0, 0])
+        self.N_sp_b = np.array([0, 0, 0])
+        self.N_sp_w = np.array([0, 0, 0])
         self.Nz_sp = 0
 
         #Note w means world frame
@@ -57,7 +59,9 @@ class game_aircraft_control():
             self.roll_sp = self.telem.roll
             self.q_att_tgt = quaternion_from_euler(0, self.pitch_sp, self.yaw_sp)
             self.dir_tgt = q_to_dir(self.q_att_tgt)
+            self.dir_sp = q_to_dir(self.q_att_tgt)
         self.cam.reset()
+        self.log = ""
 
     def get_ail(self):
         return self.ail
@@ -82,15 +86,12 @@ class game_aircraft_control():
             self.dir_tgt += quaternion_rotate(self.cam.q_view_abs, np.array([0, x_sp, y_sp], dtype=float))
             self.dir_tgt = unit_vector(self.dir_tgt)
             self.q_att_tgt = dir_to_q(self.dir_tgt)
-            self.roll_sp, self.pitch_sp, self.yaw_sp = euler_from_quaternion(self.q_att_tgt)
             # self.yaw_sp, self.pitch_sp, self.roll_sp = euler_from_quaternion(self.q_att_tgt, "szyx")
 
     def dir_to_screenpos(self, dir):
         v = quaternion_rotate(quaternion_inverse(self.cam.q_view_abs), dir)
-        if v[0] > 0:
-            v = v / v[0]
-            return v[1]*self.cam.fx, v[2]*self.cam.fy
-        return -10000, -10000
+        v = v / v[0]
+        return v[1]*self.cam.fx, v[2]*self.cam.fy
 
     def move_aim_mouse(self):
         if self.pitch_sp is not None:
@@ -115,34 +116,50 @@ class game_aircraft_control():
             _s += f"att2sp\t{self.dw_sp[0]*57.3:3.1f}\t{self.dw_sp[1]*57.3:3.1f}\t{self.dw_sp[2]*57.3:3.1f}\n"
             _s += f"att2tgt\t{self.dw_tgt[0]*57.3:3.1f}\t{self.dw_tgt[1]*57.3:3.1f}\t{self.dw_tgt[2]*57.3:3.1f}\n"
             _s += f"thr\t{self.thr*100:5.1f}%\n"
-            _s += f"load {self.telem.Nz}g -Nz_sp\t{-self.Nz_sp/G:3.1f}g\t-NSp\t{-self.N_sp[0]/G:3.1f}\t{-self.N_sp[1]/G:3.1f}\t{-self.N_sp[2]/G:3.1f}g   dload {self.telem.Nz - (-self.Nz_sp/G)}\n\n"
+            _s += f"load {self.telem.Nz}g -Nz_sp\t{-self.Nz_sp/G:3.1f}g\t-NSp\t{-self.N_sp_w[0]/G:3.1f}\t{-self.N_sp_w[1]/G:3.1f}\t{-self.N_sp_w[2]/G:3.1f}g   dload {self.telem.Nz - (-self.Nz_sp/G):3.1f}g\n\n Log:"
+            _s += self.log
             print(_s)
             return _s
         return "Wait for connection"
 
     def control_body_aim(self, q_tgt):
         #need to update to quaternion
-        dv = self.dir_tgt - self.dir_now
-        Nz_bz = p_dir_nz*np.dot(dv, [0, 0, 1])*self.telem.tas # Require load project to z axis
-        Nz_by = p_dir_nz*np.dot(dv, [0, 1, 0])*self.telem.tas  # Require load parallel to y axis
-        print(f"dv {dv} Nz_bz {Nz_bz} Nz_by {Nz_by}")
-        self.N_sp = np.array([0, Nz_by, Nz_bz]) + [0, 0, -G]
-        self.Nz_sp = quaternion_rotate(quaternion_inverse(self.q_att), self.N_sp)[2]
+        # dv = self.dir_tgt - self.dir_now
+        dv = quaternion_rotate(quaternion_inverse(self.q_att), self.dir_tgt) - np.array([1, 0, 0])
+        Nz_bz = p_dir_nz*np.dot(dv, [0, 0, 1]) # Require load project to z axis
+        Nz_by = p_dir_nz*np.dot(dv, [0, 1, 0])  # Require load parallel to y axis
+        self.N_sp_b = np.array([0, Nz_by, Nz_bz]) + [0, 0, -G]
+        self.Nz_sp = self.N_sp_b[2]
+        self.N_sp_w = quaternion_rotate(self.q_att, -self.N_sp_b)
 
-        self.q_att_sp = dir_to_q(self.dir_now, -self.N_sp)
+        N_sp_w_v = unit_vector(self.N_sp_w)
+        #We should set up the new q_att here by N_sp_w and new vel which vertical to N_sp_w but at same plane with dir now
+        # dir_Sp = dir_now - dir_now \dot N_sp_w
+        self.dir_sp = unit_vector(self.dir_tgt - np.dot(self.dir_tgt, N_sp_w_v)*N_sp_w_v) #What happen when N_sp_w and dir now is parallel?
+        self.q_att_sp = dir_to_q(self.dir_tgt, N_sp_w_v)
+
         self.roll_sp, self.pitch_sp, self.yaw_sp = euler_from_quaternion(self.q_att_sp)
+        # print("dir_sp", self.dir_sp, "N_sp_w_v", N_sp_w_v, "q_att_sp", self.q_att_sp, "q_att", self.q_att, "att rpy", r*57.3, p*57.3, y*57.3, "euler sp", self.roll_sp*57.3, self.pitch_sp*57.3, self.yaw_sp*57.3)
         dw = att_err_to_tangent_space(self.q_att_sp, self.q_att)
+        
         self.dw_sp = dw
         return dw
 
     def controller_update(self):
         if self.telem.OK:
             if control_style == "warthunder":
-                tas_coeff  = cruise_spd*cruise_spd/(self.telem.tas*self.telem.tas)
+                if self.telem.tas > min_spd:
+                    tas_coeff  = cruise_spd*cruise_spd/(self.telem.tas*self.telem.tas)
+                else:
+                    tas_coeff  = cruise_spd*cruise_spd/(min_spd*min_spd)
+
                 dw = self.control_body_aim(self.q_att_tgt)
                 self.ail = dw[0]*p_roll + p_rollrate*(self.rollrate_b_sp-self.telem.rollrate)
                 self.ele = dw[1]*p_pitch + p_pitchrate*(self.pitchrate_b_sp-self.telem.pitchrate) + p_nz_ele *tas_coeff* ((-self.Nz_sp/G) - self.telem.Nz)
                 self.rud = dw[2]*p_yaw + p_yawrate*(self.yawrate_b_sp-self.telem.yawrate)
+
+                self.log = f"dw {dw[0]*57.3:3.1f} {dw[1]*57.3:3.1f} {dw[2]*57.3:3.1f} ele angle err {dw[1]:3.4f} out {dw[1]*p_pitch*100:3.4f} dampping err {(self.pitchrate_b_sp-self.telem.pitchrate):3.4f}  \
+                output {p_pitchrate*(self.pitchrate_b_sp-self.telem.pitchrate)*100:3.4f} load err {((-self.Nz_sp/G) - self.telem.Nz):3.4f} output {p_nz_ele *tas_coeff* ((-self.Nz_sp/G) - self.telem.Nz):3.4f} "
 
         self.telem.updated = False
 

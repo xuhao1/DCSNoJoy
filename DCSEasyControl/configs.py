@@ -12,21 +12,34 @@ THR_RATE = 0.7
 #Rate of free view and mouse aim
 att_sp_rate = 0.5
 
-#For F18
-p_dir_nz = 0.5
+# #For F18
+# p_dir_nz = 10
+# p_roll = 2.0
+# p_pitch = 4.0
+# p_yaw = 4.0 
+
+# p_rollrate = 1.0
+# p_pitchrate = 0.4
+# p_yawrate = 1.0
+
+# p_nz_ele = 0.15
+
+# cruise_spd = 300 #cruise_spd for pid, in m/s
+# min_spd = 100
+
+
+#For F51
+p_dir_nz = 10
 p_roll = 2.0
-p_pitch = 2.0
+p_pitch = 3.0
 p_yaw = 4.0 
-
 p_rollrate = 1.0
-p_pitchrate = 0.0
+p_pitchrate = 0.4
 p_yawrate = 1.0
-
-p_yaw_w_to_roll = 10.0
-
 p_nz_ele = 0.1
+cruise_spd = 200 #cruise_spd for pid, in m/s
+min_spd = 80
 
-cruise_spd = 300 #cruise_spd for pid, in m/s
 
 # For VIEW
 view_filter_rate = 0.005

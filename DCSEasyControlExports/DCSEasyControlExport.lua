@@ -42,7 +42,6 @@ function LuaExportStop()
 end
 
 function parse_incoming_message(data, myData)
-    log.write("EasyControl.EXPORT Recv", log.INFO, data)
     numbers = {}
     local data_num = 0
     for num in string.gmatch(data, '([^,]+)') do
@@ -53,9 +52,9 @@ function parse_incoming_message(data, myData)
     local dt = time - numbers[1]
     -- log.write("EasyControl.EXPORT", log.INFO, string.format(
 
-    -- log.write("EasyControl.EXPORT", log.INFO, string.format(
-    --     "timenow %f dt %f ctrl %f %f %f %f", 
-    --     time, dt*1000, numbers[3], numbers[2], numbers[4], numbers[5]))
+    log.write("EasyControl.EXPORT", log.INFO, string.format(
+        "timenow %f dt %f ctrl %f %f %f %f", 
+        time, dt*1000, numbers[3], numbers[2], numbers[4], numbers[5]))
 
     LoSetCommand(2001, numbers[3]) -- elevator
     LoSetCommand(2002, numbers[2]) -- aileron
@@ -135,6 +134,7 @@ function LuaExportActivityNextEvent(t)
         local omega = LoGetAngularVelocity()
         local cam_pose = {}
         local time = LoGetModelTime()
+        local nz = LoGetAccelerationUnits().y;
         data = connectSocRecv:receive()
         if data then
             nojoy_cam_pose = parse_incoming_message(data, myData)
@@ -151,9 +151,10 @@ function LuaExportActivityNextEvent(t)
 
         if count%5 == 0 then
             local _datalog = string.format(
-                "name=%s time=%.3f altBar=%.3f x=%.5f y=%.5f z=%.5f pitch=%.5f roll=%.5f yaw=%.5f yawrate=%.5f pitchrate=%.5f rollrate=%.5f tas=%.3f aoa=%.5f \
+                "name=%s time=%.3f altBar=%.3f x=%.5f y=%.5f z=%.5f pitch=%.5f roll=%.5f yaw=%.5f yawrate=%.5f pitchrate=%.5f rollrate=%.5f tas=%.3f aoa=%.5f Nz=%.5f\
                 Rcamxx=%.5f  Rcamxy=%.5f Rcamxz=%.5f Rcamyx=%.5f  Rcamyy=%.5f  Rcamyz=%.5f  Rcamzx=%.5f  Rcamzy=%.5f Rcamzz=%.5f Tcamx=%.5f Tcamy=%.5f Tcamz=%.5f\n", 
-                myData.Name, time, altBar, pos.x, pos.y, pos.z, pitch, roll, yaw, omega.y, omega.z, omega.x, tas, aoa,
+                myData.Name, time, altBar, pos.x, pos.y, pos.z, 
+                pitch, roll, yaw, omega.y, omega.z, omega.x, tas, aoa, nz,
                 cam_pose.x.x, cam_pose.x.y, cam_pose.x.z, 
                 cam_pose.y.x, cam_pose.y.y, cam_pose.y.z, 
                 cam_pose.z.x, cam_pose.z.y, cam_pose.z.z, 
@@ -168,6 +169,7 @@ function LuaExportActivityNextEvent(t)
     return t+0.001
 end
 
+-- See https://wiki.hoggitworld.com/view/DCS_Export_Script
 -- Index 00 = LoGetAccelerationUnits().x = Lateral acceleration (G)
 -- Index 01 = LoGetAccelerationUnits().z = Longitudinal acceleration (G)
 -- Index 02 = LoGetAccelerationUnits().y = Vertical acceleration (G)
