@@ -70,7 +70,8 @@ class dcs_cam_control():
     def set_camera_view(self):
         if ACTIVE_CTRL_VIEW:
             if not self.is_free_look:
-                q_view_sp, _ = self.q_default_view()
+                q_view_sp =  quaternion_multiply(self.q_cam_pitch_offset, self.con.q_att_tgt)
+                q_view_sp = setZeroRoll(q_view_sp)
                 self.q_view_abs = quaternion_slerp(self.q_view_abs, q_view_sp, view_filter_rate)
                 self.dir_view_abs = q_to_dir(self.q_view_abs)
             q_cam, T_cam = self.cameraPose()

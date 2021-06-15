@@ -37,8 +37,8 @@ class game_aircraft_control():
         self.pitch_sp = None
         self.roll_sp = None
 
-        self.Nz_sp = np.array([0, 0, 0])
-        self.Nz_DV = 0
+        self.N_sp = np.array([0, 0, 0])
+        self.Nz_sp = 0
 
         #Note w means world frame
         self.yawrate_w_sp = 0
@@ -108,14 +108,14 @@ class game_aircraft_control():
 
         if self.telem.OK:
             _s =  f"t\t{self.telem.time:3.1f}\t{self.telem.name}\n"
-            _s += f"TAS:\t{self.telem.tas*3.6:3.1f}km/h\tAoA:{self.telem.aoa:3.1f}"
+            _s += f"TAS:\t{self.telem.tas*3.6:3.1f}km/h\tAoA:{self.telem.aoa:3.1f}\n"
             _s += f"yaw: \tsp\t{yaw_sp*57.3:3.1f}\traw {self.telem.yaw*57.3:3.1f}\trate {self.telem.yawrate*57.3:3.1f}\trud {self.rud*100:3.1f}%\n"
             _s += f"pitch \tsp\t{pitch_sp*57.3:3.1f}\traw {self.telem.pitch*57.3:3.1f}\trate {self.telem.pitchrate*57.3:3.1f}\tele {self.ele*100:3.1f}%\n"
             _s += f"roll: \tsp\t{roll_sp*57.3:3.1f}\traw {self.telem.roll*57.3:3.1f}\trate {self.telem.rollrate*57.3:3.1f}\tail {self.ail*100:3.1f}%\n"
             _s += f"att2sp\t{self.dw_sp[0]*57.3:3.1f}\t{self.dw_sp[1]*57.3:3.1f}\t{self.dw_sp[2]*57.3:3.1f}\n"
             _s += f"att2tgt\t{self.dw_tgt[0]*57.3:3.1f}\t{self.dw_tgt[1]*57.3:3.1f}\t{self.dw_tgt[2]*57.3:3.1f}\n"
             _s += f"thr\t{self.thr*100:5.1f}%\n"
-            _s += f"-NzDV\t{-self.Nz_DV/G:3.1f}g\t-NzSp\t{-self.Nz_sp[0]/G:3.1f}\t{-self.Nz_sp[1]/G:3.1f}\t{-self.Nz_sp[2]/G:3.1f}g  load {self.telem.Nz}g\n\n"
+            _s += f"load {self.telem.Nz}g -Nz_sp\t{-self.Nz_sp/G:3.1f}g\t-NSp\t{-self.N_sp[0]/G:3.1f}\t{-self.N_sp[1]/G:3.1f}\t{-self.N_sp[2]/G:3.1f}g   dload {self.telem.Nz - (-self.Nz_sp/G)}\n\n"
             print(_s)
             return _s
         return "Wait for connection"
@@ -123,10 +123,13 @@ class game_aircraft_control():
     def control_body_aim(self, q_tgt):
         #need to update to quaternion
         dv = self.dir_tgt - self.dir_now
-        self.Nz_DV = NzDV = p_dir_nz*np.dot(dv, [0, 0, -1])*self.telem.tas
-        self.Nz_sp = Nzsp = NzDV*np.array([0, 0, -1]) - [0, 0, G]
+        Nz_bz = p_dir_nz*np.dot(dv, [0, 0, 1])*self.telem.tas # Require load project to z axis
+        Nz_by = p_dir_nz*np.dot(dv, [0, 1, 0])*self.telem.tas  # Require load parallel to y axis
+        print(f"dv {dv} Nz_bz {Nz_bz} Nz_by {Nz_by}")
+        self.N_sp = np.array([0, Nz_by, Nz_bz]) + [0, 0, -G]
+        self.Nz_sp = quaternion_rotate(quaternion_inverse(self.q_att), self.N_sp)[2]
 
-        self.q_att_sp = dir_to_q(self.dir_now, -self.Nz_sp)
+        self.q_att_sp = dir_to_q(self.dir_now, -self.N_sp)
         self.roll_sp, self.pitch_sp, self.yaw_sp = euler_from_quaternion(self.q_att_sp)
         dw = att_err_to_tangent_space(self.q_att_sp, self.q_att)
         self.dw_sp = dw
@@ -135,9 +138,10 @@ class game_aircraft_control():
     def controller_update(self):
         if self.telem.OK:
             if control_style == "warthunder":
+                tas_coeff  = cruise_spd*cruise_spd/(self.telem.tas*self.telem.tas)
                 dw = self.control_body_aim(self.q_att_tgt)
                 self.ail = dw[0]*p_roll + p_rollrate*(self.rollrate_b_sp-self.telem.rollrate)
-                self.ele = dw[1]*p_pitch + p_pitchrate*(self.pitchrate_b_sp-self.telem.pitchrate) + p_nz_ele * (self.telem.Nz - (-self.Nz_sp[2]/G))
+                self.ele = dw[1]*p_pitch + p_pitchrate*(self.pitchrate_b_sp-self.telem.pitchrate) + p_nz_ele *tas_coeff* ((-self.Nz_sp/G) - self.telem.Nz)
                 self.rud = dw[2]*p_yaw + p_yawrate*(self.yawrate_b_sp-self.telem.yawrate)
 
         self.telem.updated = False
