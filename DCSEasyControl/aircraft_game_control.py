@@ -89,7 +89,10 @@ class game_aircraft_control():
             # self.yaw_sp, self.pitch_sp, self.roll_sp = euler_from_quaternion(self.q_att_tgt, "szyx")
 
     def dir_to_screenpos(self, dir):
-        v = quaternion_rotate(quaternion_inverse(self.cam.q_view_abs), dir)
+        if ACTIVE_CTRL_F3:
+            v = quaternion_rotate(quaternion_inverse(self.telem.q_telem_cam), dir)
+        else:
+            v = quaternion_rotate(quaternion_inverse(self.cam.q_view_abs), dir)
         v = v / v[0]
         return v[1]*self.cam.fx, v[2]*self.cam.fy
 
@@ -158,8 +161,8 @@ class game_aircraft_control():
                 self.ele = dw[1]*p_pitch + p_pitchrate*(self.pitchrate_b_sp-self.telem.pitchrate) + p_nz_ele *tas_coeff* ((-self.Nz_sp/G) - self.telem.Nz)
                 self.rud = dw[2]*p_yaw + p_yawrate*(self.yawrate_b_sp-self.telem.yawrate)
 
-                self.log = f"dw {dw[0]*57.3:3.1f} {dw[1]*57.3:3.1f} {dw[2]*57.3:3.1f} ele angle err {dw[1]:3.4f} out {dw[1]*p_pitch*100:3.4f} dampping err {(self.pitchrate_b_sp-self.telem.pitchrate):3.4f}  \
-                output {p_pitchrate*(self.pitchrate_b_sp-self.telem.pitchrate)*100:3.4f} load err {((-self.Nz_sp/G) - self.telem.Nz):3.4f} output {p_nz_ele *tas_coeff* ((-self.Nz_sp/G) - self.telem.Nz):3.4f} "
+                # self.log = f"dw {dw[0]*57.3:3.1f} {dw[1]*57.3:3.1f} {dw[2]*57.3:3.1f} ele angle err {dw[1]:3.4f} out {dw[1]*p_pitch*100:3.4f} dampping err {(self.pitchrate_b_sp-self.telem.pitchrate):3.4f}  \
+                # output {p_pitchrate*(self.pitchrate_b_sp-self.telem.pitchrate)*100:3.4f} load err {((-self.Nz_sp/G) - self.telem.Nz):3.4f} output {p_nz_ele *tas_coeff* ((-self.Nz_sp/G) - self.telem.Nz):3.4f} "
 
         self.telem.updated = False
 

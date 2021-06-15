@@ -48,7 +48,7 @@ class DCSTelem():
         _s += f"{self.T_cam[1]:3.4f},"
         _s += f"{self.T_cam[2]:3.4f},"
 
-        if ACTIVE_CTRL_VIEW:
+        if ACTIVE_CTRL_VIEW and not ACTIVE_CTRL_F3:
             for i in range(3):
                 for j in range(3):
                     _s += f"{self.R_cam[i, j]:3.4f},"
@@ -101,8 +101,10 @@ class DCSTelem():
             [ self.Rcamxy, self.Rcamyy, self.Rcamzy, 0],
             [ self.Rcamxz, self.Rcamyz, self.Rcamzz, 0],
             [ 0, 0, 0, 1]])
+        self.R_telem_cam[0:3,0:3] = R_NUEtoNED @self.R_telem_cam[0:3,0:3]@R_NUEtoNED.transpose()
         r, p, y = euler_from_matrix(self.R_telem_cam)
-        self.q_telem_cam = quaternion_from_euler(0, y, -p)
+        # print("telem rpy", r*57.3, p*57.3, y*57.3)
+        self.q_telem_cam = quaternion_from_matrix(self.R_telem_cam)
 
     def parse_data(self, data):
         data = data.decode("utf-8") 

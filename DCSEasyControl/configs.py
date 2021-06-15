@@ -1,3 +1,4 @@
+import numpy as np
 # control_style = "battlefield" 
 control_style = "warthunder" 
 
@@ -29,24 +30,25 @@ att_sp_rate = 0.5
 
 
 #For F51
-p_dir_nz = 10
-p_roll = 2.0
-p_pitch = 3.0
-p_yaw = 4.0 
+p_dir_nz = 8
+p_roll = 3.0
+p_pitch = 8.0
+p_yaw = 10.0 
 p_rollrate = 1.0
 p_pitchrate = 0.4
 p_yawrate = 1.0
 p_nz_ele = 0.1
 cruise_spd = 200 #cruise_spd for pid, in m/s
 min_spd = 80
-
+CAMERA_X = 20
+CAMERA_Z = 5
 
 # For VIEW
 view_filter_rate = 0.005
 view_rate = 1.0
-CAMERA_X = 30
-CAMERA_Z = 5
-CAM_PITCH_OFFSET = -5/57.3
+#CAMERA_X = 30
+#CAMERA_Z = 5
+CAM_PITCH_OFFSET = -10/57.3
 
 #Keyboard shortcuts
 keyboard_freelook = "c"
@@ -77,6 +79,7 @@ ACTIVE_CTRL_VIEW = True
 
 ACTIVE_CTRL_F3 = False
 G = 9.8
+# DEFAULT_FOV = 85/57.3
 DEFAULT_FOV = 85/57.3
 
 UDP_IP = "127.0.0.1"
@@ -85,3 +88,9 @@ UDP_PORT = 4242
 DCS_UDP_IP = "127.0.0.1"
 DCS_UDP_PORT = 27015
 DCS_UDP_SEND_PORT = 27016
+
+R_NUEtoNED = np.array([
+    [1, 0, 0],
+    [0, 0, 1],
+    [0, -1, 0]
+])
