@@ -90,7 +90,6 @@ class DCSTelem():
     def set_camera_pose(self, view_yaw, view_pitch, T):
         # self.R_cam = quaternion_matrix(q)
         self.R_cam = euler_matrix(0, -view_yaw, view_pitch)
-        print("set view pitch yaw", view_pitch*57.3, view_yaw*57.3)
         Rcam = self.R_cam[0:3, 0:3]
         self.T_cam[0] = T[0]
         self.T_cam[1] = -T[2]
@@ -104,7 +103,6 @@ class DCSTelem():
             [ 0, 0, 0, 1]])
         r, p, y = euler_from_matrix(self.R_telem_cam)
         self.q_telem_cam = quaternion_from_euler(0, y, -p)
-        print(f"View pitch {y*57.3} yaw {p*57.3}")
 
     def parse_data(self, data):
         data = data.decode("utf-8") 

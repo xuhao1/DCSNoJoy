@@ -1,4 +1,9 @@
-# DCS cooridnate system
+# DCS Plugin Development notes
+## APIs
+See https://wiki.hoggitworld.com/view/DCS_Export_Script
+
+## DCS cooridnate system
+![](./world_axis.PNG)
 north-up-east cooridnate system
 x: north y: height z: east
 
@@ -12,26 +17,41 @@ R_NUEtoNED = [
     [0, -1, 0]
 ]
 
-# Camera Roatations
+## Matrix in DCS (guess is inherit from opengl)
+
+R=LoGetCameraPosition()
+Then
+Transformation
+
+[ [ R.x.x, R.y.x, R.y.x, R.p.x],
+ [ R.x.y, R.y.y, R.z.y, R.p.y],
+ [ R.x.z, R.y.z, R.z.z, R.p.z],
+ [0, 0, 0, 1]]
+
+
+## Camera Roatations
+The Front of camera is it's x axis. up is +y, left is +z.
+![](./camera_axis.PNG)
 For camera
 Rotation:
 R = eye(3)
 The view is point to north, left screen is west, right screen is east up down correct
 
+
 euler_matrix(0, 0, np.pi/2)
-    Rotate yaw + 90, the view is watch ground
+    Rotate yaw + 90, the view is watch sky
 
 euler_matrix(0, 0, -np.pi/2)
-    Rotate yaw - 90, the view is watch sky
+    Rotate yaw - 90, the view is watch ground
 
 euler_matrix(pi/2, 0, 0) or euler_matrix(-pi/2, 0, 0)
     Watch north, no different with identity
 
 euler_matrix(0, pi/2, 0)
-    Watch east, up down correct, left screen is north right is south
+    Watch west, up down correct
 
 euler_matrix(0, -pi/2, 0)
-    Watch west, up down correct, left screen is north right is south
+    Watch east
 
 So naive way is
 Rcam_dcs = euler_matrix(0, view_yaw, -view_pitch)
@@ -54,7 +74,7 @@ Tcam_dcs[2] = Tcam_ned[1]
 In F11 view, you can freely write control. However the WSAD key will cause jiiter.
 In F3 view, you can change the view by write the relative position (interesting), because it always foucs on the aircraft.
 
-# python transformations
+## python transformations
 Common euler angles on aviation is ZYX, which is also default by python transformations.py
 Here we use MATLAB as standard
 

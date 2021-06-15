@@ -6,9 +6,6 @@ DCS_UDP_IP = "127.0.0.1"
 DCS_UDP_PORT = 27015
 DCS_UDP_SEND_PORT = 27016
 
-DEFAULT_FOV = 85/57.3
-VIEW_OFFSET = 0
-MAX_BANK = 80/57.3
 
 CAMERA_X = 30
 CAMERA_Z = 8
@@ -28,6 +25,7 @@ att_sp_rate = 0.5
 control_style = "warthunder" 
 
 #For F18
+p_dir_nz = 0.1
 p_roll = 2.0
 p_pitch = 4.0
 p_yaw = 4.0 # P51
@@ -38,6 +36,7 @@ p_yawrate = 1.0
 
 p_yaw_w_to_roll = 10.0
 
+p_nz_ele = 0.1
 #p yaw to roll
 
 view_filter_rate = 0.005
@@ -73,3 +72,5 @@ HIDE_WIHTOUT_DCS = False
 ACTIVE_CTRL_VIEW = True
 
 ACTIVE_CTRL_F3 = False
+G = 9.8
+DEFAULT_FOV = 85/57.3
