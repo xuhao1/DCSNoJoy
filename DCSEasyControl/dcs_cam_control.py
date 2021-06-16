@@ -28,8 +28,8 @@ class dcs_cam_control():
         self.q_cam_pitch_offset = quaternion_from_euler(0, CAM_PITCH_OFFSET, 0)
         if self.con.OK:
             if ACTIVE_CTRL_VIEW:
-                self.q_view_abs = self.con.q_att_tgt.copy()
-                self.dir_view_abs = self.con.dir_tgt.copy()
+                self.q_view_abs = self.con.fc.q_att_tgt.copy()
+                self.dir_view_abs = self.con.fc.dir_tgt.copy()
             else:
                 self.update_view_from_telem()
 
@@ -62,7 +62,7 @@ class dcs_cam_control():
             self.update_view_from_telem()
 
     def q_default_view(self):
-        q_view_sp = quaternion_multiply(self.q_cam_pitch_offset, self.con.q_att_sp)
+        q_view_sp = quaternion_multiply(self.q_cam_pitch_offset, self.con.fc.q_att_sp)
         q_view_sp = setZeroRoll(q_view_sp)
         self.dir_view_abs = q_to_dir(q_view_sp)
         return q_view_sp, self.dir_view_abs
@@ -70,7 +70,7 @@ class dcs_cam_control():
     def set_camera_view(self):
         if ACTIVE_CTRL_VIEW:
             if not self.is_free_look:
-                q_view_sp =  quaternion_multiply(self.q_cam_pitch_offset, self.con.q_att_tgt)
+                q_view_sp =  quaternion_multiply(self.q_cam_pitch_offset, self.con.fc.q_att_tgt)
                 q_view_sp = setZeroRoll(q_view_sp)
                 self.q_view_abs = quaternion_slerp(self.q_view_abs, q_view_sp, view_filter_rate)
                 self.dir_view_abs = q_to_dir(self.q_view_abs)
