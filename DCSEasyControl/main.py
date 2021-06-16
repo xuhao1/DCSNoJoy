@@ -124,7 +124,7 @@ class MainWindow(QtWidgets.QMainWindow):
         dmouse_x = (x - self.windows_center_x0)*self.vmouse_rate
         dmouse_y = (y - self.windows_center_y0)*self.vmouse_rate
         
-        self.status.setStyleSheet('color: green')
+        self.status.setStyleSheet('color: red')
 
         if self.is_free_look:
             self.aircraft_con.cam.set_mouse_free_look(dmouse_x, dmouse_y)

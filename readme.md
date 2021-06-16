@@ -19,3 +19,15 @@ The reference and cooridnate system for DCS api please see this [doc](./doc/dcs.
 
 ## LICENSE
 LGPL3
+
+## Known Issue
+Aircraft not turn with very large movement between aim target and current direction.
+
+Control Stability.
+
+Mouse can run out of screen
+
+
+## TODO
+
+Parameter system for different aircrafts.
