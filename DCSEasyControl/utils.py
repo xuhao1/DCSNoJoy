@@ -16,6 +16,12 @@ def setZeroRoll(q):
     r = 0
     return quaternion_from_euler(r, p, y)
 
+def setZeroYaw(q):
+    q /= np.linalg.norm(q)
+    r, p, y = euler_from_quaternion(q)
+    y = 0
+    return quaternion_from_euler(r, p, y)
+
 def toHexCmd(cmd):
     #convert -1 to 1 to 0 to 32768
     cmd = math.floor(32768 * (cmd +1) /2)

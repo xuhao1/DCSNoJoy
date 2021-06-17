@@ -6,6 +6,10 @@ from utils import *
 from DCSTelem import *
 from dcs_cam_control import *
 
+
+SMALL_FLOAT = 1e-3
+MIN_X_SPHERE = 0.3
+
 class PIDController:
     def __init__(self, p, i, d, lim_int = 1.0):
         self.p = p
@@ -47,8 +51,9 @@ class FlightController():
 
         self.q_att_sp = np.array([1, 0, 0, 0], dtype=float) # Control Setpoint now, contain roll
         self.q_att_tgt = np.array([1, 0, 0, 0], dtype=float) # Control target, no roll
-        self.dir_tgt = np.array([1, 0, 0], dtype=float)
-        self.dir_sp = np.array([1, 0, 0], dtype=float)
+        self.dir_tgt_w = np.array([1, 0, 0], dtype=float)
+        self.dir_tgt_b = np.array([1, 0, 0], dtype=float)
+        self.dir_sp_w = np.array([1, 0, 0], dtype=float)
         self.dv = np.array([0, 0, 0], dtype=float)
 
         self.q_att = np.array([1, 0, 0, 0], dtype=float)
@@ -75,14 +80,14 @@ class FlightController():
         self.dw_tgt = np.array([0, 0, 0], dtype=float) # attitude now to tgt
         self.dw_sp = np.array([0, 0, 0], dtype=float) # attitude now to sp
 
-        if self.con.OK and self.yaw_sp == None:
-            print("Reset aircraft attitude setpoint")
+        if self.con.OK:
             self.yaw_sp = self.telem.yaw
             self.pitch_sp = self.telem.pitch
             self.roll_sp = self.telem.roll
+            print("Reset aircraft attitude setpoint")
             self.q_att_tgt = quaternion_from_euler(0, self.pitch_sp, self.yaw_sp)
-            self.dir_tgt = q_to_dir(self.q_att_tgt)
-            self.dir_sp = q_to_dir(self.q_att_tgt)
+            self.dir_tgt_w = q_to_dir(self.q_att_tgt)
+            self.dir_sp_w = q_to_dir(self.q_att_tgt)
 
     def w_to_b(self, v):
         return quaternion_rotate(quaternion_inverse(self.q_att),  v)
@@ -91,11 +96,11 @@ class FlightController():
         return quaternion_rotate(self.q_att,  v)
 
     def set_dir_tgt(self, dir_tgt):
-        self.dir_tgt = dir_tgt
-        self.q_att_tgt = dir_to_q(self.dir_tgt)
+        self.dir_tgt_w = dir_tgt
+        self.q_att_tgt = dir_to_q(self.dir_tgt_w)
 
     def get_dir_tgt(self):
-        return self.dir_tgt
+        return self.dir_tgt_w
 
     def control(self, dt):
         if self.telem.tas > min_spd:
@@ -120,7 +125,20 @@ class FlightController():
         self.dir_now = q_to_dir(self.q_att)
 
     def control_body_aim(self):
-        dv = self.w_to_b(self.dir_tgt) - np.array([1, 0, 0])
+        dir_tgt_w = self.dir_tgt_w
+        dir_tgt_b = self.w_to_b(dir_tgt_w) 
+        if dir_tgt_b[0] < MIN_X_SPHERE:
+            #Then this is in aft hemisphere, so we may convert it to the nearest point at x=0 plane
+            dir_tgt_b[0] = 0
+            if np.linalg.norm(dir_tgt_b) > SMALL_FLOAT:
+                dir_tgt_b = unit_vector(dir_tgt_b)*math.sqrt(1-MIN_X_SPHERE*MIN_X_SPHERE)
+                dir_tgt_b[0] = MIN_X_SPHERE
+            else:
+                #Target dir is -1, 0, 0 in body frame. We turn in the right
+                dir_tgt_b = np.array([math.sqrt(1-MIN_X_SPHERE*MIN_X_SPHERE), MIN_X_SPHERE, 0])
+            dir_tgt_w = self.b_to_w(dir_tgt_b)
+        self.dir_tgt_b = dir_tgt_b
+        dv = dir_tgt_b - np.array([1, 0, 0])
         self.dv = dv = dv*self.telem.tas
         N_bz = p_dir_nz*np.dot(dv, [0, 0, 1]) # Require load project to z axis
         N_by = p_dir_nz*np.dot(dv, [0, 1, 0])  # Require load parallel to y axis
@@ -130,12 +148,12 @@ class FlightController():
 
         N_sp_w_v = unit_vector(self.N_sp_w)
         #We should set up the new q_att here by N_sp_w and new vel which vertical to N_sp_w but at same plane with dir now
-        self.dir_sp = unit_vector(self.dir_now + self.b_to_w(np.array([0, N_by, N_bz]))/self.telem.tas) #What happen when N_sp_w and dir now is parallel?
+        self.dir_sp_w = unit_vector(self.dir_now + self.b_to_w(np.array([0, N_by, N_bz]))/self.telem.tas) #What happen when N_sp_w and dir now is parallel?
 
-        self.q_att_sp = dir_to_q(self.dir_tgt, N_sp_w_v)
+        self.q_att_sp = dir_to_q(dir_tgt_w, N_sp_w_v)
 
         self.roll_sp, self.pitch_sp, self.yaw_sp = euler_from_quaternion(self.q_att_sp)
-        # print("dir_sp", self.dir_sp, "N_sp_w_v", N_sp_w_v, "q_att_sp", self.q_att_sp, "q_att", self.q_att, "att rpy", r*57.3, p*57.3, y*57.3, "euler sp", self.roll_sp*57.3, self.pitch_sp*57.3, self.yaw_sp*57.3)
+        print("dir_tgt_w", dir_tgt_w, "dir_tgt_b", dir_tgt_b)
         dw = att_err_to_tangent_space(self.q_att_sp, self.q_att)
         
         self.dw_sp = dw

@@ -96,7 +96,14 @@ class MainWindow(QtWidgets.QMainWindow):
         self.timer.start(MAIN_WIN_DURATION, self)
 
         self.count = 0
+
+        self.border_x_min = 0
+        self.border_x_max = DCS_W - VMOUSE_SIZE
     
+        self.border_y_min = 0 
+        self.border_y_max = DCS_H - VMOUSE_SIZE
+
+        print("Mouse Border, x", self.border_x_min, self.border_x_max, "Y", self.border_y_min, self.border_y_max)
 
     def load_image_label(self):
         # input_image = cv2.imread("./assets/circle_small.png", cv2.IMREAD_UNCHANGED)
@@ -113,7 +120,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.virtual_mouse.setAlignment(QtCore.Qt.AlignCenter)
         self.virtual_mouse.setScaledContents(True)
         self.virtual_mouse.setMinimumSize(1,1)
-        self.virtual_mouse.setFixedSize(100, 100)
+        self.virtual_mouse.setFixedSize(VMOUSE_SIZE, VMOUSE_SIZE)
         self.virtual_mouse.move(DCS_CX, DCS_CY)
 
     def set_mouse_cur_pos_new(self, m, dt):
@@ -131,24 +138,32 @@ class MainWindow(QtWidgets.QMainWindow):
             self.status.setText(f"FreeLook\n{self.aircraft_con.cam.view_yaw*57.3:3.1f} {self.aircraft_con.cam.view_pitch*57.3:3.1f}")
         else:
             self.aircraft_con.cam.set_mouse_free_look_off()
-            self.aircraft_con.set_mouse_aircraft_control(dmouse_x, dmouse_y)
+            if self.virtual_mouse_inborder(self.vmouse_x, self.vmouse_y):
+                self.aircraft_con.set_mouse_aircraft_control(dmouse_x, dmouse_y)
             self.status.setText(f"MouseAim\n{self.aircraft_con.status()}")
 
         mouse.move(self.windows_center_x0, self.windows_center_y0)
+
         self.move_virtual_mouse(self.vmouse_x, self.vmouse_y)
         self.move_aim_tgt(self.aim_tgt_x, self.aim_tgt_y)
 
+    def vmouse_to_screen_coor(self, x, y):
+        _X = int(x - VMOUSE_SIZE/2 + DCS_W/2)
+        _Y = int(y + DCS_H/2 - VMOUSE_SIZE/2)
+        return _X, _Y
+
+    def virtual_mouse_inborder(self, x , y):
+        _X, _Y = self.vmouse_to_screen_coor(x, y)
+        return self.border_x_max > _X > self.border_x_min and \
+            self.border_y_max > _Y > self.border_y_min
 
     def move_virtual_mouse(self, x, y):
         #For window mode
-        # self.virtual_mouse.move(int(x - 50 + DCS_W/2),int(y + DCS_H/2 - 125))
-
-        self.virtual_mouse.move(int(x - 50 + DCS_W/2),int(y + DCS_H/2 - 50))
+        _X, _Y = self.vmouse_to_screen_coor(x, y)
+        self.virtual_mouse.move(_X, _Y)
 
     def move_aim_tgt(self, x, y):
         #For window mode
-        # self.aim_tgt.move(int(x - 15 + DCS_W/2),int(y + DCS_H/2 - 90))
-        
         #Full screen
         self.aim_tgt.move(int(x - 15 + DCS_W/2),int(y + DCS_H/2 - 15))
 

@@ -28,8 +28,8 @@ class game_aircraft_control():
         self.ele_user = 0
         self.rud_user = 0
 
-        self.cam.reset()
         self.fc.reset()
+        self.cam.reset()
         self.log = ""
 
     def get_ail(self):
@@ -66,13 +66,16 @@ class game_aircraft_control():
 
     def move_aim_mouse(self):
         if self.fc.pitch_sp is not None:
-            return self.dir_to_screenpos(self.fc.dir_tgt)
+            return self.dir_to_screenpos(self.get_dir_tgt())
         return -10000, -10000
     
     def move_aim_tgt(self):
         if self.fc.pitch_sp is not None:
             return self.dir_to_screenpos(self.fc.dir_now)
         return -10000, -10000
+
+    def get_dir_tgt(self):
+        return self.fc.get_dir_tgt()
 
     def status(self):
         # yaw_sp, pitch_sp, roll_sp = euler_from_quaternion(self.q_att_tgt, "rzyx")
@@ -81,6 +84,7 @@ class game_aircraft_control():
         dv = self.fc.dv
         N_sp_w = self.fc.N_sp_w
         Nz_sp = self.fc.Nz_sp
+        dir_tgt_b = self.fc.dir_tgt_b
 
         if self.telem.OK:
             _s =  f"t\t{self.telem.time:3.1f}\t{self.telem.name}\n"
@@ -89,7 +93,7 @@ class game_aircraft_control():
             _s += f"pitch \tsp\t{pitch_sp*57.3:3.1f}\traw {self.telem.pitch*57.3:3.1f}\terr {dw_sp[1]*57.3:3.1f}\trate {self.telem.pitchrate*57.3:3.1f}\tele {self.ele*100:3.1f}%\n"
             _s += f"roll: \tsp\t{roll_sp*57.3:3.1f}\traw {self.telem.roll*57.3:3.1f}\terr {dw_sp[2]*57.3:3.1f}\trate {self.telem.rollrate*57.3:3.1f}\tail {self.ail*100:3.1f}%\n"
             _s += f"thr\t{self.thr*100:5.1f}%\n"
-            _s += f"dv \t{dv[0]:3.1f}\t{dv[1]:3.1f}\t{dv[2]:3.1f}\n"
+            _s += f"dv \t{dv[0]:3.1f}\t{dv[1]:3.1f}\t{dv[2]:3.1f}\tdir_tgt_b {dir_tgt_b[0]:3.1f}\t{dir_tgt_b[1]:3.1f}\t{dir_tgt_b[2]:3.1f}\n"
             _s += f"load {self.telem.Nz}g -Nz_sp\t{-self.fc.Nz_sp/G:3.1f}g\t NSp\t{N_sp_w[0]/G:3.1f}\t{N_sp_w[1]/G:3.1f}\t{N_sp_w[2]/G:3.1f}g\tdload {self.telem.Nz - (-Nz_sp/G):3.1f}g\n\n Log:"
             _s += self.log
             print(_s)
