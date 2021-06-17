@@ -34,23 +34,46 @@ min_spd = 100
 CAMERA_X = 30
 CAMERA_Z = 5
 
-#For F51
-# p_dir_nz = 0.08
+# #For F51
+# p_dir_nz = 0.25
 # p_roll = 3.0
-# p_pitch = 8.0
+# p_pitch = 4.0
+# i_pitch = 0.1
 # p_yaw = 10.0 
 # p_rollrate = 1.0
 # p_pitchrate = 0.4
 # p_yawrate = 1.0
-# p_nz_ele = 0.1
 # cruise_spd = 200 #cruise_spd for pid, in m/s
 # min_spd = 80
 # CAMERA_X = 20
 # CAMERA_Z = 5
+# p_nz_ele = 0.01
+# i_nz_ele = 0.05
+# d_nz_ele = 0.0
+# lim_ele_int = 0.2
+
+#For propeller K4 and Spitfire
+# p_dir_nz = 0.25
+# p_roll = 3.0
+# p_pitch = 4.0
+# i_pitch = 1.0
+# p_yaw = 1.0 
+# p_rollrate = 1.0
+# p_pitchrate = 0.4
+# p_yawrate = 0.2
+# cruise_spd = 200 #cruise_spd for pid, in m/s
+# min_spd = 80
+# CAMERA_X = 20
+# CAMERA_Z = 5
+# p_nz_ele = 0.01
+# i_nz_ele = 0.03
+# d_nz_ele = 0.0
+# lim_ele_int = 0.3
+
 
 # For VIEW
 view_rate = 2.0
-view_filter_rate = 0.004
+view_filter_rate = 0.008
 view_filter_rate_freelook = 0.05
 filter_rate_of_filter_rate = 0.05
 

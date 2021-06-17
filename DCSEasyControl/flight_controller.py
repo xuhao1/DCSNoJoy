@@ -25,7 +25,7 @@ class PIDController:
     def control(self, err, dt):
         if self.err_last is None:
             self.err_last = err
-        self.err_int = float_constrain(err*dt, -self.lim_int, self.lim_int)
+        self.err_int = float_constrain(self.err_int +err*dt, -self.lim_int, self.lim_int)
         derr = (err-self.err_last)/dt
         self.err_last = err
         return self.p * err + self.i * self.err_int + self.d * derr
