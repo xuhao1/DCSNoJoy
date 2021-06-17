@@ -78,7 +78,6 @@ class game_aircraft_control():
         return self.fc.get_dir_tgt()
 
     def status(self):
-        # yaw_sp, pitch_sp, roll_sp = euler_from_quaternion(self.q_att_tgt, "rzyx")
         yaw_sp, pitch_sp, roll_sp = self.fc.yaw_sp, self.fc.pitch_sp, self.fc.roll_sp
         dw_sp = self.fc.dw_sp
         dv = self.fc.dv

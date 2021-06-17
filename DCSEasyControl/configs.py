@@ -51,6 +51,8 @@ CAMERA_Z = 5
 # For VIEW
 view_rate = 2.0
 view_filter_rate = 0.004
+view_filter_rate_freelook = 0.05
+filter_rate_of_filter_rate = 0.05
 
 CAM_PITCH_OFFSET = -10/57.3
 #Keyboard shortcuts

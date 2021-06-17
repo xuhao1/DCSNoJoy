@@ -21,6 +21,8 @@ class dcs_cam_control():
         self.view_yaw = 0
         self.view_pitch = 0
 
+        self.view_filter_rate = view_filter_rate
+
         print(f"Camera cx {self.cx} cy{self.cy} fx {self.fx} fy {self.fy}")
 
     def reset(self):
@@ -49,20 +51,18 @@ class dcs_cam_control():
             _, self.view_pitch, self.view_yaw = euler_from_quaternion(self.q_view_abs)
             # print(f"Free look yaw {self.view_yaw*57.3:3.1f} pitch {self.view_pitch*57.3:3.1f} ")
             self.last_free_look = True
+            self.view_filter_rate = view_filter_rate_freelook
         else:
             self.update_view_from_telem()
     
     def set_mouse_free_look_off(self):
         if ACTIVE_CTRL_VIEW:
             self.is_free_look = False
-            if self.q_view_abs is None or self.last_free_look:
-                self.q_view_abs, self.dir_view_abs = self.q_default_view()
-                self.last_free_look = False
+            self.view_filter_rate = self.view_filter_rate*(1-filter_rate_of_filter_rate) + filter_rate_of_filter_rate*view_filter_rate
         else:
             self.update_view_from_telem()
 
     def q_default_view(self):
-        # q_view_sp = quaternion_multiply(self.q_cam_pitch_offset, self.con.fc.q_att_sp)
         q_view_sp = quaternion_multiply(self.con.fc.q_att_sp, self.q_cam_pitch_offset)
         q_view_sp = setZeroRoll(q_view_sp)
         self.dir_view_abs = q_to_dir(q_view_sp)
@@ -73,7 +73,7 @@ class dcs_cam_control():
             if not self.is_free_look:
                 q_view_sp =  quaternion_multiply(self.con.fc.q_att_sp, self.q_cam_pitch_offset)
                 q_view_sp = setZeroRoll(q_view_sp)
-                self.q_view_abs = quaternion_slerp(self.q_view_abs, q_view_sp, view_filter_rate)
+                self.q_view_abs = quaternion_slerp(self.q_view_abs, q_view_sp, self.view_filter_rate)
                 self.dir_view_abs = q_to_dir(self.q_view_abs)
             q_cam, T_cam = self.cameraPose()
             self.telem.set_camera_pose(q_cam, T_cam)
@@ -82,7 +82,6 @@ class dcs_cam_control():
 
     def cameraPose(self):
         # T is relative to our aircraft
-        # mat = quaternion_matrix(quaternion_inverse(self.q_view_abs))[0:3,0:3]
         mat = quaternion_matrix(self.q_view_abs)[0:3,0:3]
         T_cam = mat @ [-CAMERA_X, 0, -CAMERA_Z]
         if ACTIVE_CTRL_F3:
