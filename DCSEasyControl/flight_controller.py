@@ -1,10 +1,7 @@
-import time
 import math
 from transformations import *
-from configs import *
-from utils import *
-from DCSTelem import *
-from dcs_cam_control import *
+from Configs.configs import *
+from .utils import *
 
 
 SMALL_FLOAT = 1e-3
@@ -35,11 +32,10 @@ class PIDController:
         self.err_last = None
 
 class FlightController():
-    def __init__(self, con):
+    def __init__(self, con, params):
         self.con = con
         self.telem = con.telem
-        self.g_ele_con = PIDController(p_nz_ele, i_nz_ele, d_nz_ele, lim_ele_int)
-        self.pit_ele_con = PIDController(p_pitch, i_pitch, 0, lim_ele_int)
+        self.params = params
 
         self.reset()
 
@@ -75,10 +71,16 @@ class FlightController():
         self.pitchrate_b_sp = 0
         self.rollrate_b_sp = 0
 
-        self.g_ele_con.reset()
 
         self.dw_tgt = np.array([0, 0, 0], dtype=float) # attitude now to tgt
         self.dw_sp = np.array([0, 0, 0], dtype=float) # attitude now to sp
+
+        params = self.params
+        self.g_ele_con = PIDController(params.p_nz_ele, params.i_nz_ele, params.d_nz_ele, params.lim_ele_int)
+        self.pit_ele_con = PIDController(params.p_pitch, params.i_pitch, 0, params.lim_ele_int)
+
+        self.g_ele_con.reset()
+        self.pit_ele_con.reset()
 
         if self.con.OK:
             self.yaw_sp = self.telem.yaw
@@ -103,21 +105,22 @@ class FlightController():
         return self.dir_tgt_w
 
     def control(self, dt):
-        if self.telem.tas > min_spd:
-            tas_coeff  = cruise_spd*cruise_spd/(self.telem.tas*self.telem.tas)
+        p = self.params
+        if self.telem.tas > p.min_spd:
+            tas_coeff  = p.cruise_spd*p.cruise_spd/(self.telem.tas*self.telem.tas)
         else:
-            tas_coeff  = cruise_spd*cruise_spd/(min_spd*min_spd)
+            tas_coeff  = p.cruise_spd*p.cruise_spd/(p.min_spd*p.min_spd)
 
         dw = self.control_body_aim()
-        self.ail = dw[0]*p_roll + p_rollrate*(self.rollrate_b_sp-self.telem.rollrate)
+        self.ail = dw[0]*p.p_roll + p.p_rollrate*(self.rollrate_b_sp-self.telem.rollrate)
         ele_by_pit = self.pit_ele_con.control(dw[1], dt) 
-        ele_by_rate = p_pitchrate*(self.pitchrate_b_sp-self.telem.pitchrate)
+        ele_by_rate = p.p_pitchrate*(self.pitchrate_b_sp-self.telem.pitchrate)
         ele_by_g = tas_coeff* self.g_ele_con.control(((-self.Nz_sp/G) - self.telem.Nz), dt)
         self.ele = ele_by_pit+ele_by_rate+ele_by_g
-        print(f"""ele_by_pit {ele_by_pit*100:3.1f} ele_by_rate {ele_by_rate*100:3.1f} ele_by_g {ele_by_g*100:3.1f} ele {self.ele*100}
-            (-self.Nz_sp/G) {(-self.Nz_sp/G):3.1f} self.telem.Nz {self.telem.Nz}
-        """)
-        self.rud = dw[2]*p_yaw + p_yawrate*(self.yawrate_b_sp-self.telem.yawrate)
+        # print(f"""ele_by_pit {ele_by_pit*100:3.1f} ele_by_rate {ele_by_rate*100:3.1f} ele_by_g {ele_by_g*100:3.1f} ele {self.ele*100}
+            # (-self.Nz_sp/G) {(-self.Nz_sp/G):3.1f} self.telem.Nz {self.telem.Nz}
+        # """)
+        self.rud = dw[2]*p.p_yaw + p.p_yawrate*(self.yawrate_b_sp-self.telem.yawrate)
 
     
     def set_att(self, q):
@@ -125,6 +128,7 @@ class FlightController():
         self.dir_now = q_to_dir(self.q_att)
 
     def control_body_aim(self):
+        p = self.params
         dir_tgt_w = self.dir_tgt_w
         dir_tgt_b = self.w_to_b(dir_tgt_w) 
         if dir_tgt_b[0] < MIN_X_SPHERE:
@@ -140,8 +144,8 @@ class FlightController():
         self.dir_tgt_b = dir_tgt_b
         dv = dir_tgt_b - np.array([1, 0, 0])
         self.dv = dv = dv*self.telem.tas
-        N_bz = p_dir_nz*np.dot(dv, [0, 0, 1]) # Require load project to z axis
-        N_by = p_dir_nz*np.dot(dv, [0, 1, 0])  # Require load parallel to y axis
+        N_bz = p.p_dir_nz*np.dot(dv, [0, 0, 1]) # Require load project to z axis
+        N_by = p.p_dir_nz*np.dot(dv, [0, 1, 0])  # Require load parallel to y axis
         self.N_sp_b = np.array([0, N_by, N_bz]) + self.w_to_b([0, 0, -G])
         self.Nz_sp = self.N_sp_b[2]
         self.N_sp_w = self.b_to_w(-self.N_sp_b)
@@ -153,7 +157,7 @@ class FlightController():
         self.q_att_sp = dir_to_q(dir_tgt_w, N_sp_w_v)
 
         self.roll_sp, self.pitch_sp, self.yaw_sp = euler_from_quaternion(self.q_att_sp)
-        print("dir_tgt_w", dir_tgt_w, "dir_tgt_b", dir_tgt_b)
+        # print("dir_tgt_w", dir_tgt_w, "dir_tgt_b", dir_tgt_b)
         dw = att_err_to_tangent_space(self.q_att_sp, self.q_att)
         
         self.dw_sp = dw

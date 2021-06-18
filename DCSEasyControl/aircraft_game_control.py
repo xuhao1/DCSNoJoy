@@ -1,19 +1,26 @@
 import time
 import math
 from transformations import *
-from configs import *
-from utils import *
-from DCSTelem import *
-from dcs_cam_control import *
-from flight_controller import *
+
+from .params_server import ParameterServer
+from Configs.configs import *
+from .utils import *
+from .DCSTelem import *
+from .dcs_cam_control import *
+from .flight_controller import *
+from yaml import load, dump
 
 
 class game_aircraft_control():
-    def __init__(self, win_w, win_h):
+    def __init__(self, win_w, win_h, path):
         self.telem = DCSTelem()
         self.OK = False
-        self.cam = dcs_cam_control(win_w, win_h, self)
-        self.fc = FlightController(self)
+        self.param = ParameterServer(path)
+        self.param.load_aircraft("default")
+        self.cam = dcs_cam_control(win_w, win_h, self, self.param)
+        self.fc = FlightController(self, self.param)
+        self.thr = 0.9
+
         #View camera parameter
         self.reset()
 
@@ -22,7 +29,6 @@ class game_aircraft_control():
         self.ail = 0
         self.ele = 0
         self.rud = 0
-        self.thr = 0.9
 
         self.ail_user = 0
         self.ele_user = 0
@@ -31,6 +37,9 @@ class game_aircraft_control():
         self.fc.reset()
         self.cam.reset()
         self.log = ""
+
+        if self.telem.OK:
+            self.param.load_aircraft(self.telem.name)
 
     def get_ail(self):
         return self.ail

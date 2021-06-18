@@ -1,7 +1,7 @@
 import socket
 import re
 import select
-from configs import *
+from Configs.configs import *
 import numpy as np
 from transformations import *
 import time

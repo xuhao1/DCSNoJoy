@@ -1,0 +1,17 @@
+CAMERA_X: 20
+CAMERA_Z: 5
+cruise_spd: 200
+d_nz_ele: 0.0
+i_nz_ele: 0.05
+i_pitch: 0.1
+lim_ele_int: 0.2
+min_spd: 80
+p_dir_nz: 0.25
+p_nz_ele: 0.01
+p_pitch: 4.0
+p_pitchrate: 0.4
+p_roll: 3.0
+p_rollrate: 1.0
+p_yaw: 10.0
+p_yawrate: 1.0
+

@@ -3,10 +3,11 @@ from PyQt5.QtWidgets import QToolTip, QPushButton, QLabel
 from PyQt5.QtGui import QFont
 from PyQt5.QtCore import QBasicTimer
 import sys
-from aircraft_game_control import *
+from DCSEasyControl.aircraft_game_control import *
 import mouse
 import keyboard
 import win32gui
+import os
 
 DCS_X = 0
 DCS_Y = 0
@@ -17,9 +18,6 @@ DCS_CY = 500
 DCS_WIN_NAME = "Digital Combat Simulator"
 WIN_NAME = "DCSEasyControl"
 from win32api import GetSystemMetrics
-
-
-
 
 def callback(hwnd, extra):
     rect = win32gui.GetWindowRect(hwnd)
@@ -49,7 +47,10 @@ def callback(hwnd, extra):
 
 class MainWindow(QtWidgets.QMainWindow):
     def __init__(self, parent=None):
-        self.aircraft_con = game_aircraft_control(DCS_W, DCS_H)
+        import pathlib
+        path = pathlib.Path(__file__).parent.absolute()
+        print(path)
+        self.aircraft_con = game_aircraft_control(DCS_W, DCS_H, path)
         super(MainWindow, self).__init__(parent)
         self.setWindowFlags(
             QtCore.Qt.WindowStaysOnTopHint |

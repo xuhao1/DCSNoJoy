@@ -1,12 +1,11 @@
 import math
-import math
 from transformations import *
-from configs import *
-from utils import *
-from DCSTelem import *
+from .utils import *
+from .DCSTelem import *
+from Configs.configs import *
 
 class dcs_cam_control():
-    def __init__(self, win_w, win_h, con):
+    def __init__(self, win_w, win_h, con, param):
         self.cx = win_w /2
         self.cy = win_h /2
         self.fx = self.fy = win_w/2/math.tan(DEFAULT_FOV/2)
@@ -22,6 +21,7 @@ class dcs_cam_control():
         self.view_pitch = 0
 
         self.view_filter_rate = view_filter_rate
+        self.param = param
 
         print(f"Camera cx {self.cx} cy{self.cy} fx {self.fx} fy {self.fy}")
 
@@ -83,7 +83,7 @@ class dcs_cam_control():
     def cameraPose(self):
         # T is relative to our aircraft
         mat = quaternion_matrix(self.q_view_abs)[0:3,0:3]
-        T_cam = mat @ [-CAMERA_X, 0, -CAMERA_Z]
+        T_cam = mat @ [-self.param.CAMERA_X, 0, -self.param.CAMERA_Z]
         if ACTIVE_CTRL_F3:
-            T_cam = mat @ [-CAMERA_X, 0, 0]
+            T_cam = mat @ [-self.param.CAMERA_X, 0, 0]
         return self.q_view_abs, T_cam
