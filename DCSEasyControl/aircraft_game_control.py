@@ -80,7 +80,8 @@ class game_aircraft_control():
     
     def move_aim_tgt(self):
         if self.fc.pitch_sp is not None:
-            return self.dir_to_screenpos(self.fc.dir_now)
+            q = quaternion_multiply(self.fc.q_att, quaternion_from_euler(0, self.param.gun_pitch/57.3, 0))
+            return self.dir_to_screenpos(q_to_dir(q))
         return -10000, -10000
 
     def get_dir_tgt(self):
@@ -96,13 +97,13 @@ class game_aircraft_control():
 
         if self.telem.OK:
             _s =  f"t\t{self.telem.time:3.1f}\t{self.telem.name}\n"
-            _s += f"TAS:\t{self.telem.tas*3.6:3.1f}km/h\tAoA:{self.telem.aoa:3.1f}\n"
+            _s += f"TAS:\t{self.telem.tas*3.6:3.1f}km/h\tAoA:{self.telem.aoa:3.1f}deg\n"
             _s += f"yaw: \tsp\t{yaw_sp*57.3:3.1f}\traw {self.telem.yaw*57.3:3.1f}\terr {dw_sp[0]*57.3:3.1f}\trate {self.telem.yawrate*57.3:3.1f}\trud {self.rud*100:3.1f}%\n"
             _s += f"pitch \tsp\t{pitch_sp*57.3:3.1f}\traw {self.telem.pitch*57.3:3.1f}\terr {dw_sp[1]*57.3:3.1f}\trate {self.telem.pitchrate*57.3:3.1f}\tele {self.ele*100:3.1f}%\n"
             _s += f"roll: \tsp\t{roll_sp*57.3:3.1f}\traw {self.telem.roll*57.3:3.1f}\terr {dw_sp[2]*57.3:3.1f}\trate {self.telem.rollrate*57.3:3.1f}\tail {self.ail*100:3.1f}%\n"
             _s += f"thr\t{self.thr*100:5.1f}%\n"
             _s += f"dv \t{dv[0]:3.1f}\t{dv[1]:3.1f}\t{dv[2]:3.1f}\tdir_tgt_b {dir_tgt_b[0]:3.1f}\t{dir_tgt_b[1]:3.1f}\t{dir_tgt_b[2]:3.1f}\n"
-            _s += f"load {self.telem.Nz}g -Nz_sp\t{-self.fc.Nz_sp/G:3.1f}g\t NSp\t{N_sp_w[0]/G:3.1f}\t{N_sp_w[1]/G:3.1f}\t{N_sp_w[2]/G:3.1f}g\tdload {self.telem.Nz - (-Nz_sp/G):3.1f}g\n\n Log:"
+            _s += f"load {self.telem.Nz:3.1f}g -Nz_sp\t{-self.fc.Nz_sp/G:3.1f}g\t NSp\t{N_sp_w[0]/G:3.1f}\t{N_sp_w[1]/G:3.1f}\t{N_sp_w[2]/G:3.1f}g\tdload {self.telem.Nz - (-Nz_sp/G):3.1f}g\n\n Log:"
             _s += self.log
             print(_s)
             return _s

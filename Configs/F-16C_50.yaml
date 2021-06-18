@@ -8,10 +8,10 @@ lim_ele_int: 0.3
 min_spd: 100
 p_dir_nz: 0.3
 p_nz_ele: 0.02
-p_pitch: 4.0
+p_pitch: 6.0
 p_pitchrate: 0.4
 p_roll: 2.0
 p_rollrate: 1.0
-p_yaw: 4.0
-p_yawrate: 1.0
-gun_pitch: 3.0
+p_yaw: 3.0
+p_yawrate: 0.5
+
