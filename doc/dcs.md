@@ -56,16 +56,18 @@ euler_matrix(0, -pi/2, 0)
     Watch east
 ```
 So naive way is
+```python
 Rcam_dcs = euler_matrix(0, view_yaw, -view_pitch)
-
+```
 The strict way is
+```python
 R_ned =  R_NUEtoNED @ R_dcs @ R_NUEtoNED.transpose()
-The strict way is
 R_dcs =  R_NUEtoNED.transpose() @ R_ned @ R_NUEtoNED
+```
 
 Translation:
 
-```
+```python
 T = aircraft_pos + [0, 0, 0] # camera is near center of aircraft
 T = aircraft_pos + [30, 0, 0] # camera is at north of aircraft
 T = aircraft_pos + [0, 30, 0] # camera is at upward the aircraft
@@ -77,7 +79,7 @@ T = aircraft_pos + [0, 0, -30] # camera i at west of aircraft
 
 To convert cam pos to make it soround the aircraft
 
-```
+```python
 Tcam_ned = Rcam_ned*Toffset_ned
 Tcam_dcs[1] = -Tcam_ned[2]
 Tcam_dcs[2] = Tcam_ned[1]
