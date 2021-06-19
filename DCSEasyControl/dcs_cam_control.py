@@ -80,7 +80,6 @@ class dcs_cam_control():
                     q_view_sp = setZeroRoll(q_view_sp)
                     self.q_view_abs = quaternion_slerp(self.q_view_abs, q_view_sp, self.view_filter_rate)
                     self.dir_view_abs = q_to_dir(self.q_view_abs)
-                    q_cam, T_cam = self.cameraPose()
                 else:
                     q_view_sp = quaternion_from_euler(0, 0, 0)
                     q_view_sp = setZeroRoll(q_view_sp)
@@ -89,6 +88,7 @@ class dcs_cam_control():
             if USE_OPENTRACK:
                 self.game_tracker.send_pose([self.view_yaw*57.3, -self.view_pitch*57.3, 0], [0, 0, 0])
             else:
+                q_cam, T_cam = self.cameraPose()
                 self.telem.set_camera_pose(q_cam, T_cam)
         
 

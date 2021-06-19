@@ -45,7 +45,7 @@ keyboard_exit = "shift+esc"
 
 # Do not modify below unless you understand
 USE_VJOY = False
-USE_OPENTRACK = True
+USE_OPENTRACK = False
 MAIN_WIN_DURATION = 5
 DCS_TIMEOUT = 0.1
 HIDE_WIHTOUT_DCS = False
