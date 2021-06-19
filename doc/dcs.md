@@ -58,6 +58,11 @@ euler_matrix(0, -pi/2, 0)
 So naive way is
 Rcam_dcs = euler_matrix(0, view_yaw, -view_pitch)
 
+The strict way is
+R_ned =  R_NUEtoNED @ R_dcs @ R_NUEtoNED.transpose()
+The strict way is
+R_dcs =  R_NUEtoNED.transpose() @ R_ned @ R_NUEtoNED
+
 Translation:
 
 ```
