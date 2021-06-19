@@ -1,16 +1,12 @@
-import math
-import time
 import socket
-import math
 from transformations import *
 from Configs.configs import *
-from utils import *
-from DCSTelem import *
+from .utils import *
+from .DCSTelem import *
 import socket
 
 
-if USE_VJOY:
-    import pyvjoy
+
 class GameTracker:
     def __init__(self, ip="127.0.0.1", port=4242):
         self.UDP_IP = ip
@@ -24,7 +20,8 @@ class GameTracker:
         data = pose_to_udp_msg(eul, T)
         self.sock.sendto(data, (self.UDP_IP, self.UDP_PORT))
 
-
+if USE_VJOY:
+    import pyvjoy
 class VJoyManager(object):
     def __init__(self):
         self.j = pyvjoy.VJoyDevice(1)

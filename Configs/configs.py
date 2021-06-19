@@ -3,12 +3,17 @@ import numpy as np
 control_style = "warthunder" 
 default_config_file = "default"
 
+# mouse_joystick_elemode = "aoa"
+# mouse_joystick_elemode = "pitchrate"
+mouse_joystick_elemode = "gcmd"
 #P51
 #CAMERA_X = 20
 #CAMERA_Z = 4
 
-ailrate = 1.5
-elerate = 2.0
+ailrate = 2.0
+elerate = 1.0
+grate = 30.0
+aoarate = 0.5
 THR_RATE = 0.7
 
 #Rate of free view and mouse aim
@@ -40,7 +45,7 @@ keyboard_exit = "shift+esc"
 
 # Do not modify below unless you understand
 USE_VJOY = False
-USE_OPENTRACK = False
+USE_OPENTRACK = True
 MAIN_WIN_DURATION = 5
 DCS_TIMEOUT = 0.1
 HIDE_WIHTOUT_DCS = False

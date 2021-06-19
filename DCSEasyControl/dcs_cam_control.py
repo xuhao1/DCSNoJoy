@@ -3,6 +3,7 @@ from transformations import *
 from .utils import *
 from .DCSTelem import *
 from Configs.configs import *
+from .interfaces import GameTracker
 
 class dcs_cam_control():
     def __init__(self, win_w, win_h, con, param):
@@ -22,6 +23,9 @@ class dcs_cam_control():
 
         self.view_filter_rate = view_filter_rate
         self.param = param
+
+        if USE_OPENTRACK:
+            self.game_tracker = GameTracker()
 
         print(f"Camera cx {self.cx} cy{self.cy} fx {self.fx} fy {self.fy}")
 
@@ -71,14 +75,22 @@ class dcs_cam_control():
     def set_camera_view(self):
         if ACTIVE_CTRL_VIEW:
             if not self.is_free_look:
-                q_view_sp =  quaternion_multiply(self.con.fc.q_att_sp, self.q_cam_pitch_offset)
-                q_view_sp = setZeroRoll(q_view_sp)
-                self.q_view_abs = quaternion_slerp(self.q_view_abs, q_view_sp, self.view_filter_rate)
-                self.dir_view_abs = q_to_dir(self.q_view_abs)
-            q_cam, T_cam = self.cameraPose()
-            self.telem.set_camera_pose(q_cam, T_cam)
+                if control_style == "warthunder":
+                    q_view_sp =  quaternion_multiply(self.con.fc.q_att_sp, self.q_cam_pitch_offset)
+                    q_view_sp = setZeroRoll(q_view_sp)
+                    self.q_view_abs = quaternion_slerp(self.q_view_abs, q_view_sp, self.view_filter_rate)
+                    self.dir_view_abs = q_to_dir(self.q_view_abs)
+                    q_cam, T_cam = self.cameraPose()
+                else:
+                    q_view_sp = quaternion_from_euler(0, 0, 0)
+                    q_view_sp = setZeroRoll(q_view_sp)
+                    self.q_view_abs = q_view_sp
+            _, self.view_pitch, self.view_yaw = euler_from_quaternion(self.q_view_abs)
+            if USE_OPENTRACK:
+                self.game_tracker.send_pose([self.view_yaw*57.3, -self.view_pitch*57.3, 0], [0, 0, 0])
+            else:
+                self.telem.set_camera_pose(q_cam, T_cam)
         
-        _, self.view_pitch, self.view_yaw = euler_from_quaternion(self.q_view_abs)
 
     def cameraPose(self):
         # T is relative to our aircraft

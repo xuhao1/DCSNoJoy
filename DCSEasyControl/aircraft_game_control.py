@@ -20,6 +20,8 @@ class game_aircraft_control():
         self.cam = dcs_cam_control(win_w, win_h, self, self.param)
         self.fc = FlightController(self, self.param)
         self.thr = 0.9
+        self.win_w = win_w
+        self.win_h = win_h
 
         #View camera parameter
         self.reset()
@@ -58,8 +60,15 @@ class game_aircraft_control():
         y_sp =  _y / self.cam.fx 
         
         if control_style == "battlefield":
-            self.ail += x_sp*ailrate
-            self.ele += -y_sp*elerate
+            # self.ail += x_sp*ailrate
+            # self.ele += -y_sp*elerate
+            if mouse_joystick_elemode == "aoa":
+                self.fc.set_aoa_tgt(self.fc.aoa_sp - y_sp*aoarate)
+            elif mouse_joystick_elemode == "pitchrate":
+                self.fc.set_pitchrate_tgt(self.fc.pitchrate_b_sp - y_sp*elerate)
+            elif mouse_joystick_elemode == "gcmd":
+                self.fc.set_Nz_tgt(self.fc.Nz_sp + y_sp*grate)
+            self.fc.set_rollrate_tgt(self.fc.rollrate_b_sp + x_sp*ailrate)
         elif control_style == "warthunder" and self.OK and self.updated:
             dir_tgt = self.fc.get_dir_tgt() + quaternion_rotate(self.cam.q_view_abs, np.array([0, x_sp, y_sp], dtype=float))
             dir_tgt = unit_vector(dir_tgt)
@@ -74,10 +83,21 @@ class game_aircraft_control():
         return v[1]*self.cam.fx, v[2]*self.cam.fy
 
     def move_aim_mouse(self):
-        if self.fc.pitch_sp is not None:
-            return self.dir_to_screenpos(self.get_dir_tgt())
-        return -10000, -10000
-    
+        if control_style == "warthunder":
+            if self.fc.pitch_sp is not None:
+                return self.dir_to_screenpos(self.get_dir_tgt())
+            return -10000, -10000
+        else:
+            if mouse_joystick_elemode == "aoa":
+                return self.fc.rollrate_b_sp/self.param.max_roll_rate*self.win_w/2.2, \
+                -self.fc.aoa_sp/self.param.max_aoa*57.3*self.win_h/2.2
+            elif mouse_joystick_elemode == "gcmd":
+                return self.fc.rollrate_b_sp/self.param.max_roll_rate*self.win_w/2.2, \
+                (self.fc.Nz_sp+G)/self.param.max_gcmd*self.win_h/2.2
+            else:
+                return self.fc.rollrate_b_sp/self.param.max_roll_rate*self.win_w/2.2, \
+                -self.fc.pitchrate_b_sp/self.param.max_pitch_rate*self.win_h/2.2
+
     def move_aim_tgt(self):
         if self.fc.pitch_sp is not None:
             q = quaternion_multiply(self.fc.q_att, quaternion_from_euler(0, self.param.gun_pitch/57.3, 0))
@@ -98,12 +118,18 @@ class game_aircraft_control():
         if self.telem.OK:
             _s =  f"t\t{self.telem.time:3.1f}\t{self.telem.name}\n"
             _s += f"TAS:\t{self.telem.tas*3.6:3.1f}km/h\tAoA:{self.telem.aoa:3.1f}deg\n"
-            _s += f"yaw: \tsp\t{yaw_sp*57.3:3.1f}\traw {self.telem.yaw*57.3:3.1f}\terr {dw_sp[0]*57.3:3.1f}\trate {self.telem.yawrate*57.3:3.1f}\trud {self.rud*100:3.1f}%\n"
-            _s += f"pitch \tsp\t{pitch_sp*57.3:3.1f}\traw {self.telem.pitch*57.3:3.1f}\terr {dw_sp[1]*57.3:3.1f}\trate {self.telem.pitchrate*57.3:3.1f}\tele {self.ele*100:3.1f}%\n"
-            _s += f"roll: \tsp\t{roll_sp*57.3:3.1f}\traw {self.telem.roll*57.3:3.1f}\terr {dw_sp[2]*57.3:3.1f}\trate {self.telem.rollrate*57.3:3.1f}\tail {self.ail*100:3.1f}%\n"
-            _s += f"thr\t{self.thr*100:5.1f}%\n"
-            _s += f"dv \t{dv[0]:3.1f}\t{dv[1]:3.1f}\t{dv[2]:3.1f}\tdir_tgt_b {dir_tgt_b[0]:3.1f}\t{dir_tgt_b[1]:3.1f}\t{dir_tgt_b[2]:3.1f}\n"
-            _s += f"load {self.telem.Nz:3.1f}g -Nz_sp\t{-self.fc.Nz_sp/G:3.1f}g\t NSp\t{N_sp_w[0]/G:3.1f}\t{N_sp_w[1]/G:3.1f}\t{N_sp_w[2]/G:3.1f}g\tdload {self.telem.Nz - (-Nz_sp/G):3.1f}g\n\n Log:"
+            if control_style == "warthunder":
+                _s += f"yaw: \tsp\t{yaw_sp*57.3:3.1f}\traw {self.telem.yaw*57.3:3.1f}\terr {dw_sp[0]*57.3:3.1f}\trate {self.telem.yawrate*57.3:3.1f}\trud {self.rud*100:3.1f}%\n"
+                _s += f"pitch \tsp\t{pitch_sp*57.3:3.1f}\traw {self.telem.pitch*57.3:3.1f}\terr {dw_sp[1]*57.3:3.1f}\tratesp {self.fc.pitchrate_b_sp*57.3:3.1f} raw {self.telem.pitchrate*57.3:3.1f}\tele {self.ele*100:3.1f}%\n"
+                _s += f"roll: \tsp\t{roll_sp*57.3:3.1f}\traw {self.telem.roll*57.3:3.1f}\terr {dw_sp[2]*57.3:3.1f}\tratesp {self.fc.rollrate_b_sp*57.3:3.1f} rate {self.telem.rollrate*57.3:3.1f}\tail {self.ail*100:3.1f}%\n"
+                _s += f"thr\t{self.thr*100:5.1f}%\n"
+                _s += f"dv \t{dv[0]:3.1f}\t{dv[1]:3.1f}\t{dv[2]:3.1f}\tdir_tgt_b {dir_tgt_b[0]:3.1f}\t{dir_tgt_b[1]:3.1f}\t{dir_tgt_b[2]:3.1f}\n"
+                _s += f"load {self.telem.Nz:3.1f}g\t-Nz_sp\t{-self.fc.Nz_sp/G:3.1f}g\t NSp\t{N_sp_w[0]/G:3.1f}\t{N_sp_w[1]/G:3.1f}\t{N_sp_w[2]/G:3.1f}g\tdload {self.telem.Nz - (-Nz_sp/G):3.1f}g\n\n Log:"
+            else:
+                _s += f"aoa sp{self.fc.aoa_sp*57.3:3.1f}\traw {self.telem.aoa:3.1f}deg\tele {self.ele*100:3.1f}%\n"
+                _s += f"pitch ratesp {self.fc.pitchrate_b_sp*57.3:3.1f}\trate {self.telem.pitchrate*57.3:3.1f}\tele {self.ele*100:3.1f}%\n"
+                _s += f"roll ratesp {self.fc.rollrate_b_sp*57.3:3.1f}\trate {self.telem.rollrate*57.3:3.1f}\tail {self.ail*100:3.1f}%\n"
+                _s += f"load {self.telem.Nz:3.1f}g\t-Nz_sp\t{-self.fc.Nz_sp/G:3.1f}g\t"
             _s += self.log
             print(_s)
             return _s

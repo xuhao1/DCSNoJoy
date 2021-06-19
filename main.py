@@ -141,7 +141,10 @@ class MainWindow(QtWidgets.QMainWindow):
             self.aircraft_con.cam.set_mouse_free_look_off()
             if self.virtual_mouse_inborder(self.vmouse_x, self.vmouse_y):
                 self.aircraft_con.set_mouse_aircraft_control(dmouse_x, dmouse_y)
-            self.status.setText(f"MouseAim\n{self.aircraft_con.status()}")
+            if control_style == "warthunder":
+                self.status.setText(f"MouseAim\n{self.aircraft_con.status()}")
+            else:
+                self.status.setText(f"{mouse_joystick_elemode}&RolRate\n{self.aircraft_con.status()}")
 
         mouse.move(self.windows_center_x0, self.windows_center_y0)
 

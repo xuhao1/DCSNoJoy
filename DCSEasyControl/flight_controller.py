@@ -61,9 +61,8 @@ class FlightController():
 
         self.N_sp_b = np.array([0, 0, 0], dtype=float)
         self.N_sp_w = np.array([0, 0, 0], dtype=float)
-        self.Nz_sp = 0
+        self.Nz_sp = -G
 
-        
         #Note w means world frame
         self.yawrate_w_sp = 0
 
@@ -71,16 +70,24 @@ class FlightController():
         self.pitchrate_b_sp = 0
         self.rollrate_b_sp = 0
 
+        self.aoa_sp = 0
 
         self.dw_tgt = np.array([0, 0, 0], dtype=float) # attitude now to tgt
         self.dw_sp = np.array([0, 0, 0], dtype=float) # attitude now to sp
 
         params = self.params
         self.g_ele_con = PIDController(params.p_nz_ele, params.i_nz_ele, params.d_nz_ele, params.lim_ele_int)
-        self.pit_ele_con = PIDController(params.p_pitch, params.i_pitch, 0, params.lim_ele_int)
+        self.pitch_con = PIDController(params.p_pitch, params.i_pitch, 0, params.max_pitch_rate)
+        self.pitchrate_con = PIDController(params.p_pitchrate, params.i_pitchrate, 0, params.lim_ele_int)
+        self.aoa_con = PIDController(params.p_aoa, params.i_aoa, 0, params.lim_ele_int)
+        self.rollrate_con = PIDController(params.p_rollrate, params.i_rollrate, 0, params.lim_ail_int)
+        self.roll_con = PIDController(params.p_roll, params.i_roll, 0, params.max_roll_rate)
 
         self.g_ele_con.reset()
-        self.pit_ele_con.reset()
+        self.pitch_con.reset()
+        self.roll_con.reset()
+        self.rollrate_con.reset()
+        self.pitchrate_con.reset()
 
         if self.con.OK:
             self.yaw_sp = self.telem.yaw
@@ -101,6 +108,18 @@ class FlightController():
         self.dir_tgt_w = dir_tgt
         self.q_att_tgt = dir_to_q(self.dir_tgt_w)
 
+    def set_aoa_tgt(self, aoa):
+        self.aoa_sp = float_constrain(aoa, self.params.min_aoa/57.3, self.params.max_aoa/57.3) 
+    
+    def set_rollrate_tgt(self, rollrate):
+        self.rollrate_b_sp = float_constrain(rollrate, -self.params.max_roll_rate, self.params.max_roll_rate)
+
+    def set_pitchrate_tgt(self, rollrate):
+        self.pitchrate_b_sp = float_constrain(rollrate, -self.params.max_pitch_rate, self.params.max_pitch_rate)
+
+    def set_Nz_tgt(self, Nz):
+        self.Nz_sp = float_constrain(Nz, -self.params.max_gcmd, self.params.max_gcmd)
+
     def get_dir_tgt(self):
         return self.dir_tgt_w
 
@@ -111,17 +130,32 @@ class FlightController():
         else:
             tas_coeff  = p.cruise_spd*p.cruise_spd/(p.min_spd*p.min_spd)
 
-        dw = self.control_body_aim()
-        self.ail = dw[0]*p.p_roll + p.p_rollrate*(self.rollrate_b_sp-self.telem.rollrate)
-        ele_by_pit = self.pit_ele_con.control(dw[1], dt) 
-        ele_by_rate = p.p_pitchrate*(self.pitchrate_b_sp-self.telem.pitchrate)
-        ele_by_g = tas_coeff* self.g_ele_con.control(((-self.Nz_sp/G) - self.telem.Nz), dt)
-        self.ele = ele_by_pit+ele_by_rate+ele_by_g
-        # print(f"""ele_by_pit {ele_by_pit*100:3.1f} ele_by_rate {ele_by_rate*100:3.1f} ele_by_g {ele_by_g*100:3.1f} ele {self.ele*100}
-            # (-self.Nz_sp/G) {(-self.Nz_sp/G):3.1f} self.telem.Nz {self.telem.Nz}
-        # """)
-        self.rud = dw[2]*p.p_yaw + p.p_yawrate*(self.yawrate_b_sp-self.telem.yawrate)
+        if control_style == "warthunder":
+            dw = self.control_body_aim()
+            #Roll control
+            self.rollrate_b_sp = self.roll_con.control(dw[0], dt)
+            self.ail = self.rollrate_con.control(self.rollrate_b_sp-self.telem.rollrate, dt)
 
+            #Pitch control
+            self.pitchrate_b_sp = self.pitch_con.control(dw[1], dt) 
+            ele_by_rate = self.pitchrate_con.control(self.pitchrate_b_sp-self.telem.pitchrate, dt)
+            ele_by_g = tas_coeff* self.g_ele_con.control(((-self.Nz_sp/G) - self.telem.Nz), dt)
+            
+            self.aoa_sp = self.pitch_con.control(dw[1], dt) 
+
+            self.ele = ele_by_rate+ele_by_g
+
+            #Rudder
+            self.rud = dw[2]*p.p_yaw + p.p_yawrate*(self.yawrate_b_sp-self.telem.yawrate)
+        else:
+            if mouse_joystick_elemode == "aoa":
+                self.ele = self.aoa_con.control(self.aoa_sp - self.telem.aoa/57.3, dt)
+            elif mouse_joystick_elemode == "pitchrate":
+                self.ele = self.pitchrate_con.control(self.pitchrate_b_sp-self.telem.pitchrate, dt)
+            else:
+                self.ele = tas_coeff* self.g_ele_con.control(((-self.Nz_sp/G) - self.telem.Nz), dt)
+
+            self.ail = self.rollrate_con.control(self.rollrate_b_sp-self.telem.rollrate, dt)
     
     def set_att(self, q):
         self.q_att = q
@@ -154,6 +188,8 @@ class FlightController():
         #We should set up the new q_att here by N_sp_w and new vel which vertical to N_sp_w but at same plane with dir now
         self.dir_sp_w = unit_vector(self.dir_now + self.b_to_w(np.array([0, N_by, N_bz]))/self.telem.tas) #What happen when N_sp_w and dir now is parallel?
 
+        N_sp_w_v -= np.dot(self.dir_sp_w, N_sp_w_v)*self.dir_sp_w
+        print("dot of dirsp and N", np.dot(self.dir_sp_w, N_sp_w_v))
         self.q_att_sp = dir_to_q(dir_tgt_w, N_sp_w_v)
 
         self.roll_sp, self.pitch_sp, self.yaw_sp = euler_from_quaternion(self.q_att_sp)
