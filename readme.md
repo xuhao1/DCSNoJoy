@@ -4,13 +4,31 @@
 
 ## Usage
 
-Delete all mouse view axis
+Delete all mouse view axis. 
+Install prerequest python packages, including 
+```
+transformations
+PyQt5
+keyboard
+mouse
+PyYaml
+```
 
-Install DCSEasyControlExports to your "Saved Games/DCS/" Path
+Install DCSEasyControlExports folder to your "Saved Games/DCS/Scripts" Path and add this line to file __Saved Games/DCS/Scripts/Export.lua__
 
->python DCSEasyControl/main.py
+```lua
+dofile(lfs.writedir()..[[Scripts\DCSEasyControlExports\DCSEasyControlExport.lua]])
+```
+
+Then, run
+>python main.py
+
+in powershell.
 
 Set DCS to F12 view.
+
+Modified Configs/config.py for mouse speed and other user experience related parameters. 
+Modified controller parameters in Configs/aircraft-name.yaml. If your aircraft does not exist in that folder, just run DCSEasyControl and enter the aircraft in DCS. The aircraft-name.yaml file will be created at once. Once you modified the parameters for aircraft, please pause or enter the ESC menu in DCS and return to the game again, the up to date parameters will be loaded.
 
 ## Implement Details
 

@@ -3,7 +3,7 @@ import time
 import socket
 import math
 from transformations import *
-from configs import *
+from Configs.configs import *
 from utils import *
 from DCSTelem import *
 import socket
