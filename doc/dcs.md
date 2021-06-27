@@ -93,7 +93,7 @@ Common euler angles on aviation is ZYX, which is also default by python transfor
 Here we use MATLAB as standard
 
 ```matlab
->> eul = [1.2 -0.2 0.4];
+>> eul = [1.2 -0.2 0.4]; #yaw pith roll
 rotmZYX = eul2rotm(eul)
 
 rotmZYX =
@@ -122,4 +122,50 @@ array([[ 0.35513472, -0.88649883,  0.29664651,  0.        ],
        [ 0.91346036,  0.26164594, -0.31165939,  0.        ],
        [ 0.19866933,  0.3816559 ,  0.9027011 ,  0.        ],
        [ 0.        ,  0.        ,  0.        ,  1.        ]])
+```
+
+Use Eigen, we have
+
+```c++
+inline Eigen::Vector3d quat2eulers(const Eigen::Quaterniond &quat, int degress = true) {
+    Eigen::Vector3d ypr;
+    ypr.z() = atan2(2 * (quat.w() * quat.x() + quat.y() * quat.z()),
+                    1 - 2 * (quat.x() * quat.x() + quat.y() * quat.y()));
+    ypr.y() = asin(2 * (quat.w() * quat.y() - quat.z() * quat.x()));
+    ypr.x() = atan2(2 * (quat.w() * quat.z() + quat.x() * quat.y()),
+                    1 - 2 * (quat.y() * quat.y() + quat.z() * quat.z()));
+    if (degress) {
+        return ypr / 3.1415926535 * 180.0;
+    } else {
+        return ypr;
+    }
+}
+
+int math_tests() {
+    auto rot = Eigen::AngleAxisd(1.2, Eigen::Vector3d::UnitZ())
+            * Eigen::AngleAxisd(-0.2, Eigen::Vector3d::UnitY())
+            * Eigen::AngleAxisd(0.4, Eigen::Vector3d::UnitX());
+    auto mat = rot.toRotationMatrix();
+    std::cout << "ROTM\n" << mat << std::endl;
+
+    Eigen::Vector3d ea = mat.eulerAngles(2, 1, 0);
+    std::cout << "to Euler angles:" << ea.transpose() << std::endl;
+
+    Eigen::Quaterniond q(rot);
+    auto eul = quat2eulers(q, false);
+
+    std::cout << "quat2eulers:" << eul.transpose() << std::endl;
+
+    return 0;
+}
+
+```
+The output is 
+```
+ROTM
+ 0.355135 -0.886499  0.296647
+  0.91346  0.261646 -0.311659
+ 0.198669  0.381656  0.902701
+to Euler angles: 1.2 -0.2  0.4
+quat2eulers: 1.2 -0.2  0.4
 ```
